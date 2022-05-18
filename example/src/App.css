@@ -1,0 +1,23 @@
+/* css only for local render */
+.App {
+  min-height: 100vh;
+  background: linear-gradient(155deg, rgb(46, 49, 91) 5%, rgb(8, 14, 53) 96%) rgb(8, 14, 53);
+}
+html, body {
+  overflow: hidden;
+}
+
+input:focus-visible{
+  outline: none
+}
+
+input.form-control:hover::before {
+  border-bottom: 2px solid rgba(0, 0, 0, 0.87);
+}
+.style-container {
+  min-width: 430px
+}
+.index-style-box {
+  min-width: 430px
+}
+

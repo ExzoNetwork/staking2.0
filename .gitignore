@@ -6,8 +6,8 @@ examples/bundle.js
 package-lock.json
 staking.2.0-1.0.3.tgz
 yarn-error.log
-example/
-staking-npm/
+# example/
+# staking-npm/
 # *.tgz
 # example/src/info.js
 # example/src/lang.js

@@ -1,0 +1,68 @@
+{
+  "name": "example",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@emotion/react": "^11.7.1",
+    "@emotion/styled": "^11.6.0",
+    "@mui/icons-material": "^5.3.1",
+    "@mui/material": "^5.2.8",
+    "@testing-library/jest-dom": "^5.16.1",
+    "@testing-library/react": "^12.1.2",
+    "@testing-library/user-event": "^13.5.0",
+    "@velas/web3": "https://github.com/velas/web3.js.git#web",
+    "bn.js": "^5.2.0",
+    "buffer": "^6.0.3",
+    "cross-fetch": "^3.1.5",
+    "ethereumjs-common": "^1.5.0",
+    "ethereumjs-tx": "^2.1.2",
+    "ethereumjs-util": "^7.0.4",
+    "flatlist-react": "^1.5.0",
+    "isomorphic-webcrypto": "^2.3.8",
+    "loose-envify": "^1.4.0",
+    "mobx": "5.9.0",
+    "mobx-react": "5.4.3",
+    "prop-types": "^15.6.0",
+    "react": "^17.0.2",
+    "react-bootstrap": "^2.1.1",
+    "react-dom": "^17.0.2",
+    "react-jdenticon": "^0.0.9",
+    "react-modal": "^3.14.4",
+    "react-responsive-modal": "^6.2.0",
+    "react-router-dom": "^6.2.1",
+    "react-scripts": "5.0.0",
+    "react-sectionlist": "^0.1.2",
+    "react-sticky-table": "^5.1.11",
+    "safe-buffer": "^5.2.1",
+    "semantic-ui-react": "^2.1.1",
+    "stream": "^0.0.2",
+    "stream-browserify": "^3.0.0",
+    "styled-components": "^5.3.3",
+    "web-vitals": "^2.1.4",
+    "web3": "0.20.1"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
