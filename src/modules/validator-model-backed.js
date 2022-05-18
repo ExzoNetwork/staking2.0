@@ -61,50 +61,16 @@ class ValidatorModelBacked {
   }
 
   get rewards() {
-    let rewards = new Map();
-    for (let acc of this.stakingAccounts) {
-      if (acc.rewards === null) {
-        return null;
-      }
-      for (const reward of acc.rewards) {
-        if (!reward.amount) continue;
-        if (!rewards.has(reward.epoch)) {
-          rewards.set(reward.epoch, {
-            epoch: reward.epoch,
-            amount: reward.amount,
-            apr: reward.apr || 0,
-            postBalance: reward.solanaReward
-              ? reward.solanaReward.postBalance
-              : 0,
-          });
-          continue;
-        }
-        const prev = rewards.get(reward.epoch);
-        if (reward.apr && reward.solanaReward) {
-          const postBalance =
-            reward.solanaReward.postBalance + prev.postBalance;
-          rewards.set(reward.epoch, {
-            epoch: reward.epoch,
-            amount: prev.amount.add(reward.amount),
-            apr:
-              (prev.apr * prev.postBalance +
-                reward.apr * reward.solanaReward.postBalance) /
-              postBalance,
-            postBalance,
-          });
-          continue;
-        }
-        if (prev) {
-          rewards.set(reward.epoch, {
-            epoch: reward.epoch,
-            amount: prev.amount.add(reward.amount),
-            apr: prev.apr,
-            postBalance: prev.postBalance,
-          });
-        }
-      }
+    if (this.stakingAccounts.length === 0) {
+      return null;
     }
-    return Array.from(rewards.values()).sort((a, b) => b.epoch - a.epoch);
+    // when loading from be we get aggregated rewards for staking-accounts, so we can use 1 staking account in app to store them
+    const acc = this.stakingAccounts[0];
+    if (acc.rewards === null) {
+      return null;
+    }
+
+    return acc.rewards;
   }
 
   get isRewardsLoading() {
@@ -247,9 +213,11 @@ class ValidatorModelBacked {
   }
 
   async loadMoreRewards() {
-    return await Promise.all(
-      this.stakingAccounts.map(async (acc) => await acc.loadMoreRewards())
-    );
+    // when loading from be we get aggregated rewards for staking-accounts, so we can make request only for one staking account to get all rewards
+    if (this.stakingAccounts.length === 0) {
+      return [];
+    }
+    return await this.stakingAccounts[0].loadMoreRewards();
   }
 
   constructor(backendData, connection, network) {
