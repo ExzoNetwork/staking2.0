@@ -1,4 +1,4 @@
-import { decorate, observable, action, when } from 'mobx';
+import { decorate, observable, toJS, isObservableArray  } from 'mobx';
 import BN from 'bn.js';
 import { StakingAccountModel } from './staking-account-model.js';
 import { cachedCallWithRetries } from './utils';
@@ -70,6 +70,10 @@ class ValidatorModelBacked {
       return null;
     }
 
+    // with mobx acc.rewards became ObservableArray and breaks display logic
+    if(isObservableArray(acc.rewards)) {
+      return toJS(acc.rewards);
+    }
     return acc.rewards;
   }
 
