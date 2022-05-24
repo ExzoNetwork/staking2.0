@@ -55,6 +55,11 @@ const amountToBN = (amount) => {
   return new BN(parts[0] + parts[1] + '000000000'.slice(parts[1].length), 10);
 };
 
+const formatToFixed = (num) => {
+  const numStr = num.toString();
+  return Number(numStr.slice(0, numStr.indexOf('.') + 3));
+};
+
 export {
   formatBalance,
   formatValue,
@@ -63,4 +68,5 @@ export {
   formatReward,
   formatAmount,
   amountToBN,
+  formatToFixed,
 };

@@ -7,7 +7,7 @@ import FlatList from 'flatlist-react';
 import InfoIcon from '@mui/icons-material/Info';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
-import { formatStakeAmount, formatReward, formatValue } from './format-value';
+import { formatStakeAmount, formatReward, formatToFixed } from './format-value';
 import { Observer } from 'mobx-react';
 import DominanceIcon from './images/dominance-icon';
 import PercentIcon from './images/percent-icon';
@@ -349,7 +349,7 @@ function Rewards(props) {
   };
   const renderItem = (item, idx) => {
     const amount = item.amount ? formatReward(item.amount) : '...';
-    const apr = item.apr ? (item.apr * 100).toFixed(2) : '...';
+    const apr = item.apr ? formatToFixed(item.apr * 100) : '...';
 
     return (
       <div key={item.epoch} style={tableRow} className="tabs-container-tablerow" id='reward-item'>
