@@ -9,6 +9,7 @@ import ButtonBlock from '../buttonBlock';
 import BN from 'bn.js';
 import Loader from '../loader';
 import Alert from '@mui/material/Alert';
+import {ErrorParser} from '../errorParser';
 
 const Stake = (props) => {
   const { lang, info } = props;
@@ -101,9 +102,8 @@ const Stake = (props) => {
       console.log({result});
       if (result.error) {
         setStakingInProcess(false);
-        const errText = result.error.message || result.description || result.error;
-        console.log("stakingStore.stake err:", result);
-        setStakingError(errText.toString());
+        const errMsg = ErrorParser.parse(result.error);
+        setStakingError(errMsg);
         setTimeout(()=>{
           setStakingError(null);
         },3000)
@@ -130,8 +130,8 @@ const Stake = (props) => {
     {showStakeMore && (
       <div className="staking stake-more index-width-container" style={styles.widthContainer}>
         <Header onClickBack={backToDetailsFromStakeMore}/>
-        <InputComponent 
-          lang={lang} 
+        <InputComponent
+          lang={lang}
           info={info}
           value={values.amount}
           onChange={(text) => handleChange(text)}
