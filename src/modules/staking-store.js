@@ -22,6 +22,7 @@ import EvmToNativeBridgeAbi from './EvmToNativeBridge.js';
 import * as ethereum from 'ethereumjs-tx';
 import Common from 'ethereumjs-common';
 // import Store from "../wallet/data-scheme.js";
+import { formatToFixed } from '../format-value';
 
 const PRESERVE_BALANCE = new BN('1000000000', 10);
 const MAX_INSTRUCTIONS_PER_WITHDRAW = 18;
@@ -153,11 +154,12 @@ class StakingStore {
           await this.reloadFromBackend();
         },
         ['reloadFromBackend'],
-        3
+        3,
       );
     } catch (e) {
       this.loaderText = `Couldn't connect to servers. Connecting to node rpc`;
       console.warn('[reloadFromBackend] error, will load from node rpc: ', e);
+
       // Cannot load from backend. Use slower method.
       await rewardsStore.setConnection({
         connection: this.connection,
@@ -246,6 +248,23 @@ class StakingStore {
     const info = await this.getEpochInfo();
     return info;
   };
+
+  async getConfigsMap() {
+    const configs = await this.connection.getParsedProgramAccounts(
+      new PublicKey('Config1111111111111111111111111111111111111')
+    );
+    const configPerValidator = new Map();
+    for (let config of configs) {
+      if (Buffer.isBuffer(config.account)) continue;
+      const keys = config?.account?.data?.parsed?.info?.keys;
+      if (!keys || keys.length < 2) continue;
+      const signer = keys[1];
+      if (!signer.signer) continue;
+
+      configPerValidator.set(signer.pubkey, config);
+    }
+    return configPerValidator;
+  }
 
   async reloadFromBackend() {
     this.startRefresh();
@@ -391,15 +410,16 @@ class StakingStore {
           null
         )
     );
+    const configPerValidator = await this.getConfigsMap();
     const validators = (current || [])
       .map(
         (validator) =>
-          new ValidatorModel(validator, false, this.connection, this.network)
+          new ValidatorModel(validator, false, this.connection, this.network, configPerValidator.get(validator.nodePubkey))
       )
       .concat(
         (delinquent || []).map(
           (validator) =>
-            new ValidatorModel(validator, true, this.connection, this.network)
+            new ValidatorModel(validator, true, this.connection, this.network, configPerValidator.get(validator.nodePubkey))
         )
       );
     const validatorsMap = Object.create(null);
@@ -601,7 +621,7 @@ class StakingStore {
   }
 
   getAnnualRate(validator) {
-    return validator.apr ? (validator.apr * 100).toFixed(2) : 0;
+    return validator.apr ? formatToFixed(validator.apr * 100) : 0;
   }
 
   async getNextSeed() {

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import Jdenticon from 'react-jdenticon';
 import Badge from './badge'
 import BN from 'bn.js';
-import { formatStakeAmount } from './format-value';
+import { formatStakeAmount, formatToFixed } from './format-value';
 import List from '@mui/material/List';
 import ListItemAvatar from '@mui/material/ListItemAvatar';
 import ListItemButton from '@mui/material/ListItemButton';
@@ -61,7 +61,7 @@ const StakeItem = (props) => {
                 <div style={{marginTop: 6}}><Badge status={props.status} lang={lang}/></div>
                 <div style={{height: 10}}/>
                 <div style={{marginTop: 6, color: 'rgba(255,255,255,0.50)', fontSize: 10}}>APR,%</div>
-                <div id='apr-validator' style={{marginBlock: 2}}>{null !== props.apr && (props.apr * 100).toFixed(2)}</div>
+                <div id='apr-validator' style={{marginBlock: 2}}>{null !== props.apr && formatToFixed(props.apr * 100)}</div>
             </div>
         </div>
         </ListItemButton>

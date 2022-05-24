@@ -14,7 +14,7 @@ import InputComponent from './input'
 import Header from './header';
 import Enterance from './enterance';
 import { Observer } from 'mobx-react';
-import { formatStakeAmount, amountToBN, formatAmount, wrapNumber } from './format-value';
+import { formatStakeAmount, amountToBN, formatAmount, wrapNumber, formatToFixed } from './format-value';
 import BN from 'bn.js';
 import CircularProgress from '@mui/material/CircularProgress';
 import CloseIcon from '@mui/icons-material/Close';
@@ -676,7 +676,7 @@ const StakingPage = (props) => {
           const name = chosenValidator ? chosenValidator.name : '...';
           const commission = chosenValidator ? chosenValidator.commission : '...';
           const dominance = chosenValidator ? chosenValidator.dominance : new BN(0);
-          const apr = chosenValidator ? ((chosenValidator.apr || 0) * 100).toFixed(2) : 0;
+          const apr = chosenValidator ? formatToFixed((chosenValidator.apr || 0) * 100) : 0;
           const myActiveStake = chosenValidator && chosenValidator.myActiveStake ? chosenValidator.myActiveStake : '0';
 
           return (

@@ -2,7 +2,7 @@ import * as React from 'react';
 import Jdenticon from 'react-jdenticon';
 import Badge from './badge'
 import BN from 'bn.js';
-import { formatStakeAmount } from './format-value';
+import { formatStakeAmount, formatToFixed } from './format-value';
 import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
 
@@ -32,7 +32,7 @@ const Item = (props) => {
       <TableCell align="right" style={styleRow} className="style-row">{props.commission}</TableCell>
       {props.myStake && <TableCell align="right" style={{...styleRow, color: props.staked && '#0BFFB7'}} className="style-row">{formatStakeAmount(props.myStake)}</TableCell>}
       {props.totalStaked && <TableCell align="right" style={styleRow} className="style-row">{formatStakeAmount(props.totalStaked)}</TableCell>}
-      <TableCell align="right" style={styleRow} className="style-row">{null !== props.apr && (props.apr * 100).toFixed(2)}</TableCell>
+      <TableCell align="right" style={styleRow} className="style-row">{null !== props.apr && formatToFixed(props.apr * 100)}</TableCell>
       <TableCell align="right" style={styleRow} className="style-row">{props.totalStakers}</TableCell>
       <TableCell align="right" style={styleRow} className="style-row"><Badge status={props.status}/></TableCell>
     </TableRow>
