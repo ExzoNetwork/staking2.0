@@ -73,6 +73,11 @@ const styleSpinner = {
   left: '48%',
   color: "#fff"
 }
+const styleLoaderText = {
+  textAlign: 'center',
+  color: '#fff',
+  fontSize: 18,
+};
 const styleAlert = {
   position: "absolute",
   top: '0%',
@@ -367,19 +372,55 @@ const StakingPage = (props) => {
           const epochTime = !isNaN(_epochTime) ? Math.round(_epochTime) : '...';
           const getValidatorsError = stakingStore.getValidatorsError;
 
-          const Loading = () => {
+          const LoaderText = ({text}) => (
+            <span style={styleLoaderText}>{text}</span>
+          );
+
+          const SplittedText = ({text}) => {
+            const textParts = text.split('.');
+
             return (
-              <Box sx={styleSpinner}>
-              <CircularProgress color='inherit'/>
-            </Box>
-            )
-          }
-          if ((!filterStake || !filterTotalStaked || stakingStore.isRefreshing || stakingStore.isLoading)){
-            return (
-              <div style={{ flex: 1, alignItems: 'center' }}>
-                <Loading/>
-              </div>
+              <>
+                {textParts.map((textPart, index) => (
+                  <LoaderText
+                    key={`${textPart} ${index.toString()}`}
+                    text={textPart}
+                  />
+                ))}
+              </>
             );
+          };
+          const Loading = ({text}) => {
+            return (
+              <Box
+                sx={{
+                  ...styleSpinner,
+                  left: 0,
+                  width: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                <CircularProgress color="inherit" />
+                {text ? (
+                  !text.includes('.') ? (
+                    <LoaderText text={text} />
+                  ) : (
+                    <SplittedText text={text} />
+                  )
+                ) : null}
+              </Box>
+            );
+          };
+
+          if (
+            !filterStake ||
+            !filterTotalStaked ||
+            stakingStore.isRefreshing ||
+            stakingStore.isLoading
+          ) {
+            return <Loading text={stakingStore.loaderText} />;
           }
 
         const sections = [
