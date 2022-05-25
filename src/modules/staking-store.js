@@ -74,6 +74,7 @@ class StakingStore {
   getValidatorsError = null;
   isLoading = false;
   txsArr = new Array(20).fill({state:""});
+  loaderText = '';
 
   constructor(config) {
 
@@ -123,6 +124,7 @@ class StakingStore {
       txsProgress: observable,
       actionLabel: observable,
       refresh: observable,
+      loaderText: observable,
     });
     this.startRefresh = action(this.startRefresh);
     this.endRefresh = action(this.endRefresh);
@@ -145,6 +147,7 @@ class StakingStore {
     }
     this.isLoading = true;
     this.isRefreshing = true;
+    this.loaderText = 'Connecting to servers';
     try {
       await callWithRetries(
         async () => {
@@ -154,6 +157,7 @@ class StakingStore {
         3,
       );
     } catch (e) {
+      this.loaderText = `Couldn't connect to servers. Connecting to node rpc`;
       console.warn('[reloadFromBackend] error, will load from node rpc: ', e);
 
       // Cannot load from backend. Use slower method.
@@ -194,6 +198,7 @@ class StakingStore {
     //}
     this.isRefreshing = false;
     this.isLoading = false;
+    this.loaderText = '';
   }
 
   setTxsProgress(value) {
@@ -284,15 +289,19 @@ class StakingStore {
     const balanceEvmRes = _result[2].status === 'fulfilled' ? _result[2].value : [];
     const validatorsFromBackendResult = _result[3].status === 'fulfilled' ? _result[3].value : _result[3].reason;
 
+    if(validatorsFromBackendResult.message === 'Network request failed') {
+      // validatorsFromBackendResult will be error
+      throw new Error(validatorsFromBackendResult);
+    }
     let nativeAccountsFromBackendResult = null;
 
+    this.loaderText = 'Searching staking accounts';
     try {
       nativeAccountsFromBackendResult = await api.getStakingAccountsFromBackendCachedWithRetries({
         network: this.network,
         validatorsBackend: this.validatorsBackend,
         params: {staker: this.publicKey58},
       });
-
     } catch (error) {
       throw new Error(error);
     }
@@ -315,6 +324,8 @@ class StakingStore {
       ]);
 
     const balanceEvmJson = result[0] && result[0].status === 'fulfilled' ? result[0].value : null;
+
+    this.loaderText = 'Setting your staking accounts';
     const stakingAccounts = (nativeAccountsFromBackendResult || []).map(
       (account) =>
         new StakingAccountModel(account, this.connection, this.network, this.validatorsBackend)
@@ -378,6 +389,7 @@ class StakingStore {
         bytes: this.publicKey58,
       },
     };
+    this.loaderText = 'Searching staking accounts';
     const nativeAccounts = await this.connection.getParsedProgramAccounts(
       StakeProgram.programId,
       {
@@ -385,6 +397,7 @@ class StakingStore {
         commitment: 'confirmed',
       }
     );
+    this.loaderText = 'Setting your staking accounts';
 
     const filteredAccounts = nativeAccounts.filter((account) => {
       return (
