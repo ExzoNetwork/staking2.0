@@ -289,6 +289,10 @@ class StakingStore {
     const balanceEvmRes = _result[2].status === 'fulfilled' ? _result[2].value : [];
     const validatorsFromBackendResult = _result[3].status === 'fulfilled' ? _result[3].value : _result[3].reason;
 
+    if(validatorsFromBackendResult.message === 'Network request failed') {
+      // validatorsFromBackendResult will be error
+      throw new Error(validatorsFromBackendResult);
+    }
     let nativeAccountsFromBackendResult = null;
 
     this.loaderText = 'Searching staking accounts';
