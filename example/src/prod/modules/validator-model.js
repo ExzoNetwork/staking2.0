@@ -293,7 +293,6 @@ class ValidatorModel {
   }
 
   async loadAccountStats() {
-    console.log("[loadAccountStats] start");
     const nativeAccounts = await cachedCallWithRetries(
       this.network,
       [

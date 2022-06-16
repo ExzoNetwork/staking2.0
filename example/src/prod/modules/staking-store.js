@@ -1,4 +1,4 @@
-import { decorate, observable, action, when } from 'mobx';
+import { decorate, observable, action, when, toJS, observe } from 'mobx';
 import BN from 'bn.js';
 import bs58 from 'bs58';
 import { ValidatorModel } from './validator-model.js';
@@ -7,6 +7,10 @@ import { StakingAccountModel } from './staking-account-model.js';
 import fetch from 'cross-fetch';
 import {Buffer} from 'buffer';
 import _ from 'lodash';
+import { findIndex } from 'prelude-ls';
+import { Store } from 'react-notifications-component';
+import 'react-notifications-component/dist/theme.css';
+
 //const solanaWeb3 = require('./index.cjs.js');
 //import * as solanaWeb3 from './index.cjs.js';
 //import * as solanaWeb3 from '@velas/web3';
@@ -20,9 +24,10 @@ import { cachedCallWithRetries, callWithRetries, invalidateCache, transformNodeR
 
 import EvmToNativeBridgeAbi from './EvmToNativeBridge.js';
 import * as ethereum from 'ethereumjs-tx';
-import Common from 'ethereumjs-common';
+import Common from '@ethereumjs/common';
 // import Store from "../wallet/data-scheme.js";
 import { formatToFixed } from '../format-value';
+import { formNewStakeAccount, creationAccountSubscribe, subscribeToStakeAccount, updateStakeAccount } from './functions';
 
 const PRESERVE_BALANCE = new BN('1000000000', 10);
 const MAX_INSTRUCTIONS_PER_WITHDRAW = 18;
@@ -64,7 +69,6 @@ class StakingStore {
   rent = null;
   seedUsed = Object.create(null);
   connection = null;
-  openedValidatorAddress = null;
   evmAddress = null;
   epochInfo = null;
   network = null;
@@ -75,6 +79,7 @@ class StakingStore {
   isLoading = false;
   txsArr = new Array(20).fill({state:""});
   loaderText = '';
+  isWebSocketAvailable = false;
 
   constructor(config) {
 
@@ -105,6 +110,8 @@ class StakingStore {
     this.isLoading = false;
     this.txsProgress = this.txsArr;
     this.actionLabel = null;
+    this.chosenValidator = null;
+    this.stakeDataIsLoaded = false;
 //    this.setTxsProgress()
     this.web3 = new Web3(new Web3.providers.HttpProvider(evmAPI));
     invalidateCache();
@@ -116,7 +123,6 @@ class StakingStore {
       isRefreshing: observable,
       validatorDetailsLoading: observable,
       accounts: observable,
-      openedValidatorAddress: observable,
       epochInfo: observable,
       _currentSort: observable,
       getValidatorsError: observable,
@@ -125,10 +131,62 @@ class StakingStore {
       actionLabel: observable,
       refresh: observable,
       loaderText: observable,
+      isWebSocketAvailable: observable,
+      chosenValidator: observable,
+      stakeDataIsLoaded: observable,
+      store: observable,
     });
+
+    const wsUrl = nativeApi.replace("https://", "ws://ssss");
+    this.checkWSConnection(wsUrl);
     this.startRefresh = action(this.startRefresh);
     this.endRefresh = action(this.endRefresh);
     this.init();
+    if (window) {
+      window.staking2_0 = this;
+    }
+
+    const resetSubsc = this.connection._resetSubscriptions;
+    this.connection._resetSubscriptions = () => {
+      console.log('reset subscriptions were made');
+      resetSubsc();
+    }
+
+    const onOpen = this.connection._wsOnOpen;
+    this.connection._wsOnOpen = () => {
+      console.log("on open event");
+      showNotification({message: 'Connection restored'})
+      onOpen();
+    }
+
+    const onClose = this.connection._wsOnClose;
+    const showNotification = ({title, message}, type='success') => {
+      Store.addNotification({
+        title: title || "",
+        message,
+        type,
+        insert: "top",
+        container: "bottom-right",
+//        animationIn: ["animate__animated", "animate__fadeIn"],
+//        animationOut: ["animate__animated", "animate__fadeOut"],
+        dismiss: {
+          duration: 1000,
+          onScreen: false
+        }
+      });
+    }
+    this.connection._wsOnClose = (...args) => {
+      showNotification(
+        { title: "Oops",
+          message: "WebSocket connection closed!"
+        }
+        ,'danger');
+      onClose(...args);
+    }
+  }
+
+  checkWSConnection(url) {
+    this.isWebSocketAvailable = 'WebSocket' in window || 'MozWebSocket' in window;
   }
 
   async reloadWithRetryAndCleanCache() {
@@ -328,8 +386,10 @@ class StakingStore {
 
     this.loaderText = 'Setting your staking accounts';
     const stakingAccounts = (nativeAccountsFromBackendResult || []).map(
-      (account) =>
-        new StakingAccountModel(account, this.connection, this.network, this.validatorsBackend)
+      (account) => {
+        const stakeAcc = new StakingAccountModel(account, this.connection, this.network, this.validatorsBackend);
+        return stakeAcc;
+      }
     );
 
     const tmp = validatorsFromBackend && validatorsFromBackend.validators ? validatorsFromBackend.validators : (validatorsFromBackend || []);
@@ -366,6 +426,27 @@ class StakingStore {
       epochInfo
     );
   }
+
+  onAccountChangeCallback = (accountModel) => async (updatedAccount) => {
+    const account = accountModel;
+
+    accountModel._isActivationRequested = false;
+    const validator = this.getOpenedValidator();
+    if (validator) {
+      const parsedValidator = this.getDetailsFromValidator(validator);
+      validator.requestStakeAccountsActivation(true);
+    }
+
+    updateStakeAccount(
+      {
+        accounts: this.accounts,
+        account,
+        updatedAccount,
+        connection: this.connection
+      }
+    );
+  }
+
 
   async reloadFromNodeRpc() {
     this.startRefresh();
@@ -407,13 +488,14 @@ class StakingStore {
       );
     });
     const stakingAccounts = (filteredAccounts || []).map(
-      (account) =>
-        new StakingAccountModel(
+      (account) => {
+        return new StakingAccountModel(
           transformNodeRpcGetParsedProgramAccountsToBackendFormat(account),
           this.connection,
           this.network,
           null
         )
+      }
     );
     const configPerValidator = await this.getConfigsMap();
     const validators = (current || [])
@@ -506,23 +588,26 @@ class StakingStore {
     }
     return this.validators.filter((validator) => validator.myStake);
   }
-  getValidatorDetails = () => {
-    const validatorAddress = this.openedValidatorAddress;
-    if (typeof validatorAddress !== 'string') {
-//      throw new Error('openedValidatorAddress need to be set');
-        return null;
-    }
-    if (!this.validators) return null;
-    const validator = this.validators.find(
+
+  getOpenedValidator = () => {
+    return this.chosenValidator;
+  }
+
+  setChosenValidator(validatorAddress) {
+    const validator = (this.validators || []).find(
       ({ address }) => address === validatorAddress
     );
-    if (!validator) {
-      return null;
-      //throw new Error('Validator not found');
-    }
+    if (!validator) throw new Error("Validator not found");
+    this.chosenValidator = validator;
+  }
+
+  getValidatorDetails = () => {
+
+    if (!this.chosenValidator) return null;
+    const validator = this.chosenValidator;
 
     return {
-      address: validatorAddress,
+      address: validator.address,
       identity: validator.identity,
       dominance: this.getDominance(validator),
       quality: this.getQuality(validator),
@@ -535,7 +620,7 @@ class StakingStore {
       stakeDataIsLoaded: (!validator.myStake) || validator.myStake.isZero() ||
         (validator.totalActiveStake !== null && validator.totalInactiveStake !== null),
       name: validator.name,
-      available_balance: this.getBalance(),
+      available_balance: this.getBalance() || new BN(0),
       myActiveStake:
         validator.totalActiveStake &&
         validator.totalInactiveStake &&
@@ -556,10 +641,56 @@ class StakingStore {
         validator.totalAvailableForWithdrawRequestStake,
     };
   }
-  getRewards = () => {
-    const validatorAddress = this.openedValidatorAddress;
+
+  getDetailsFromValidator = () => {
+    if (!this.chosenValidator) throw new Error('[getRewards] chosenValidator is not defined');
+    const validator = this.chosenValidator;
+    const validatorAddress = this.chosenValidator.address;
     if (typeof validatorAddress !== 'string') {
-      throw new Error('openedValidatorAddress need to be set');
+        return null;
+    }
+
+    return {
+      address: validatorAddress,
+      identity: validator.identity,
+      dominance: this.getDominance(validator),
+      quality: this.getQuality(validator),
+      annualPercentageRate: this.getAnnualRate(validator),
+      apr: validator.apr,
+      commission: validator.commission,
+      status: validator.status,
+      myStake: validator.myStake,
+      activeStake: validator.activeStake,
+      stakeDataIsLoaded: (!validator.myStake) || validator.myStake.isZero() ||
+        (validator.totalActiveStake !== null && validator.totalInactiveStake !== null),
+      name: validator.name,
+      available_balance: this.getBalance() || new BN(0),
+      myActiveStake:
+        validator.totalActiveStake &&
+        validator.totalInactiveStake &&
+        (!validator.totalActiveStake.isZero() ||
+          !validator.totalInactiveStake.isZero() ||
+          null) &&
+        validator.totalActiveStake
+          .mul(new BN(100))
+          .div(validator.totalActiveStake.add(validator.totalInactiveStake))
+          .toString(10),
+      totalWithdrawRequested: validator.totalWithdrawRequested,
+      availableWithdrawRequested: validator.availableWithdrawRequested,
+      totalActiveStake: validator.totalActiveStake,
+      totalActivatingStake: validator.totalActivatingStake,
+      totalDeactivatingStake: validator.totalDeactivatingStake,
+      totalInactiveStake: validator.totalInactiveStake,
+      totalAvailableForWithdrawRequestStake:
+        validator.totalAvailableForWithdrawRequestStake,
+    };
+  }
+
+  getRewards = () => {
+    if (!this.chosenValidator) throw new Error('[getRewards] chosenValidator is not defined');
+    const validatorAddress = this.chosenValidator.address;
+    if (typeof validatorAddress !== 'string') {
+      throw new Error('Validator address need to be set');
     }
     const validator = this.validators.find(
       ({ address }) => address === validatorAddress
@@ -574,7 +705,8 @@ class StakingStore {
   }
 
   loadMoreRewards = async () => {
-    const validatorAddress = this.openedValidatorAddress;
+    if (!this.chosenValidator) throw new Error('[getRewards] chosenValidator is not defined');
+    const validatorAddress = this.chosenValidator.address;
     if (typeof validatorAddress !== 'string' || !this.validators) {
       return;
     }
@@ -669,11 +801,10 @@ class StakingStore {
     }
 
     const payAccount = new Account(this.secretKey);
-    let result = await this.connection.sendTransaction(transaction, [
+    let signature = await this.connection.sendTransaction(transaction, [
       payAccount,
     ]);
-
-    return result;
+    return signature;
   }
 
   waitTransactionMined(txHash, interval, resolve, reject) {
@@ -795,12 +926,30 @@ class StakingStore {
       })
     );
     try{
-      const result = await this.sendTransaction(transaction);
-      if (result.error){
-        return result;
+      const signature = await this.sendTransaction(transaction);
+      if (!signature) {
+        return {error: 'something went wrong'};
       }
-      await this.reloadWithRetryAndCleanCache();
-      return result;
+      if (signature.error){
+        return signature;
+      }
+      const commitment = 'confirmed';
+      await this.connection.confirmTransaction(signature, commitment);
+
+      if (this.chosenValidator){
+        const newStakeAccount = await formNewStakeAccount(
+          {
+            newStakePubkey: stakePubkey,
+            isWebSocketAvailable: this.isWebSocketAvailable,
+            connection: this.connection,
+            network: this.network,
+            validatorsBackend: this.validatorsBackend,
+          }
+        );
+        const requestActivation = true;
+        this.chosenValidator.addStakingAccount(newStakeAccount, requestActivation);
+      }
+      return signature;
     } catch (err) {
       return {error: err};
     }
@@ -859,8 +1008,7 @@ class StakingStore {
       basePubkey: authorizedPubkey,
     };
 
-    return StakeProgram.splitWithSeed(params);
-    // return await this.sendTransaction(transaction);
+    return { instruction: StakeProgram.splitWithSeed(params), splitStakePubkey };
   }
 
   async undelegateTransaction(stakePubkey) {
@@ -888,6 +1036,7 @@ class StakingStore {
     if (!this.validators) {
       throw new Error('Not loaded');
     }
+    let _splitStakePubkey = null;
     this.actionLabel = 'request_withdraw';
     let transaction = null;
     this.txsProgress = this.txsArr;
@@ -944,12 +1093,13 @@ class StakingStore {
         transaction.add(await this.undelegateTransaction(account.publicKey));
         amount = amount.sub(account.myStake);
       } else {
-        transaction.add(
-          await this.splitStakeAccountTransaction(
-            account,
-            account.myStake.sub(amount)
-          )
+        const splitInstruction = await this.splitStakeAccountTransaction(
+          account,
+          account.myStake.sub(amount)
         );
+        const { instruction, splitStakePubkey } = splitInstruction;
+        _splitStakePubkey = splitStakePubkey;
+        transaction.add(instruction);
         transaction.add(await this.undelegateTransaction(account.publicKey));
         break;
       }
@@ -961,13 +1111,28 @@ class StakingStore {
     if (this.txsProgress.filter(it => it.transaction).length > 1)
       return {error: true, code: WITHDRAW_TX_SIZE_MORE_THAN_EXPECTED_CODE};
 
-    const res = await this.sendTransaction(transaction);
-    if (res.error){
-      return res;
+    const signature = await this.sendTransaction(transaction);
+    if (signature && signature.error){
+      return signature;
     }
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    await this.reloadWithRetryAndCleanCache();
-    return res;
+
+    if (_splitStakePubkey) {
+      const commitment = 'confirmed';
+      await this.connection.confirmTransaction(signature, commitment);
+      const params$ = {
+        accounts: this.accounts,
+        connection: this.connection,
+        isWebSocketAvailable: this.isWebSocketAvailable,
+        newStakePubkey: _splitStakePubkey,
+        validatorsBackend: this.validatorsBackend,
+        network: this.network,
+        onAccountChangeCallback: this.onAccountChangeCallback,
+        currentValidator: this.chosenValidator,
+      };
+      await creationAccountSubscribe(params$);
+    }
+    this.chosenValidator.requestStakeAccountsActivation(true);
+    return signature;
   }
 
   getTransactionByteSize(transaction) {
@@ -991,19 +1156,24 @@ class StakingStore {
 
     await when(() => !!this.accounts);
     var filteredAccounts = [];
-    for (let i = 0; i < this.accounts.length; i++) {
-      var account = this.accounts[i];
+    const validatorAccounts = this.chosenValidator.stakingAccounts;
+    for (let i = 0; i < validatorAccounts.length; i++) {
+      var account = validatorAccounts[i];
       var unixTimestamp = account.unixTimestamp || account.account.lockupUnixTimestamp;
 
       if (account.validatorAddress !== address) continue;
       if (unixTimestamp > Date.now() / 1000) continue;
-      const { inactive, state } = await this.connection.getStakeActivation(
-        new PublicKey(account.publicKey)
-      );
-      if (!inactive || (state !== 'inactive' && state !== 'deactivating')) {
-        continue;
+      try {
+        const { inactive, state } = await this.connection.getStakeActivation(
+          new PublicKey(account.publicKey)
+        );
+        if (!inactive || (state !== 'inactive' && state !== 'deactivating')) {
+          continue;
+        }
+        filteredAccounts.push(account);
+      } catch (err) {
+        console.log("[withdrawRequested] getStakeActivation err:", err)
       }
-      filteredAccounts.push(account);
     }
 
     const txsCount = Math.ceil(filteredAccounts.length / MAX_INSTRUCTIONS_PER_WITHDRAW);
@@ -1044,6 +1214,7 @@ class StakingStore {
         console.warn(e);
       }
     }
+    console.log(`Try to withdraw ${sendAmount} VLX`)
     this.updateTx({transaction,sendAmount, state: ""}, arrIndex);
     arrIndex++;
 
@@ -1055,7 +1226,6 @@ class StakingStore {
       return res;
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    await this.reloadWithRetryAndCleanCache();
     return res;
   }
 
@@ -1076,7 +1246,6 @@ class StakingStore {
       if(info.meta && info.meta.status && (info.meta.status.Ok !== undefined)) {
         return cb(null, info);
       }
-
     };
   };
 
