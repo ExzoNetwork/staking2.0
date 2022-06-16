@@ -30,7 +30,7 @@ const config = {
   // evmPrivateKey: '0xe87d22fd129e2d1e908386345949ee827072d24a6263a473cf73b76245825a88',
   // network: 'mainnet',
   // nativePrivateKey: '4463ibVte5g6mNgdQQv9m9qCNbhVBP7Le8k4dNBxvnWoqBFtcuhRpENb3JakoX6ojWN1tJchQaWKHoU3yBbd94UL'
-  
+
   // publicKey: '9fjYnPBCRVdTPTfxznWvLjmqNiQtDLwJd6kXg2JQZZAU',
   // evmAddress: '0x4ccdc962846984d33c91b16f693e9ddec24cf8cd',
   // evmPrivateKey: '0x7cfdd8e83c49e90344e3e3c0b4650ec1eecf5e6cf52919ac0df05e21ddd80499',
@@ -86,7 +86,6 @@ function App() {
           position: 'relative',
           display: 'block',
           width: 'auto',
-          marginLeft: 250,
           minHeight: '100vh',
           boxSizing: 'border-box',
           padding: 0,
