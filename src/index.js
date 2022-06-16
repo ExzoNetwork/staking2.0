@@ -95,8 +95,8 @@ const styleAlert = {
 const WITHDRAW_TX_SIZE_MORE_THAN_EXPECTED_CODE = 102;
 
 const StakingPage = (props) => {
-  // const { stakingStore, lang, info } = props;  //add to prod index.js
-  const { stakingStore } = props;  //remove from prod index.js
+  const { stakingStore, lang, info } = props;  //add to prod index.js
+  //const { stakingStore } = props;  //remove from prod index.js
 
   const [showStakePage, setShowStakePage] = React.useState({show: false, address: '', name: '', apr: '', status: '', nodePubKey: '', activeStake: '' });
   const onClickRequest = () => {
