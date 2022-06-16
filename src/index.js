@@ -29,9 +29,9 @@ import { EpochCurrent } from './images/epoch-current';
 import Notice from './notice';
 import SortIcon from '@mui/icons-material/Sort';
 import TransactionsProgress from './modal/TransactionsProgress';
-import index from './index.css' //remove from prod index.js
-import lang from '../lang'; //remove from prod index.js
-import info from '../info'; //remove from prod index.js
+//import index from './index.css' //remove from prod index.js
+//import lang from '../lang'; //remove from prod index.js
+//import info from '../info'; //remove from prod index.js
 import {ErrorParser} from './errorParser';
 
 const style = {
