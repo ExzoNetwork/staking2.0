@@ -28,7 +28,7 @@ export const getRewardsFromBackend = async ({validatorsBackend, params}) => {
       })
   );
   const {rewards} = await rewardsResult.json();
-  return rewards;
+  return rewards || [];
 };
 
 export const getStakingAccountsFromBackendCachedWithRetries = async ({
