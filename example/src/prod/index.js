@@ -3,7 +3,6 @@
 import React, {useState, useEffect} from 'react';
 import Box from '@mui/material/Box';
 import Jdenticon from 'react-jdenticon';
-import { ReactNotifications } from 'react-notifications-component';
 import Badge from './badge';
 import InfoBlock from './infoBlock';
 import Tabs from './tabs';
@@ -846,7 +845,7 @@ const StakingPage = (props) => {
     const withdrawDisabled = !values.amountWithdraw || (amountToBN(values.amountWithdraw+"").gt(TOTAL_STAKE)) || values.amountWithdraw == 0
 
     const onClickMax = (text) => {
-      setValues({ ...values, amountWithdraw: formatAmount(TOTAL_STAKE)});
+      setValues({ ...values, amountWithdraw: formatAmount(TOTAL_STAKE, {decimals: true})});
     }
     return (
       <>
@@ -868,13 +867,15 @@ const StakingPage = (props) => {
                   { withdrawError }
               </Alert>}
             <Header onClickBack={backToDetailsFrowWithdraw}/>
-            <InputComponent lang={lang}
+            <InputComponent
+              lang={lang}
               value={values.amountWithdraw}
               onChange={(text) => handleChange(text)}
               maxValue={TOTAL_STAKE}
               maxValueText={lang.yourTotalStake || 'Your total stake'}
               onClickMax={onClickMax}
               info={info}
+              maxFractionLength={10}
             />
           {(amountToBN(values.amountWithdraw+"").gt(TOTAL_STAKE)) &&
             <Notice mt={20} text={lang.noticeTrying || "You are trying to withdraw more funds than you have."}/>
@@ -908,7 +909,6 @@ const StakingPage = (props) => {
   };
   return (
     <div className="staking index-width-container full-width" style={widthContainer}>
-      <ReactNotifications/>
      {loading ? <Loading/> :
         <Box sx={{...style, backgroundColor: info.app.stakingBg || "#151839"}} className={heightChange ? !showStakePage.show ? "index-style-box-size" : "style-container-size" : !showStakePage.show ? "index-style-box" : "style-container"}>
           <StakePage />

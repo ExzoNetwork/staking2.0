@@ -1,4 +1,5 @@
 import BN from 'bn.js';
+import BigNum from 'bignumber.js';
 
 
 const formatBalance = (n) => {
@@ -16,7 +17,7 @@ const wrapNumber = (n) => {
   return n.replace(',', '.').replace(/[^0-9\.]/g, '');
 };
 
-const formatStakeAmount = (n) => {
+const formatStakeAmount = (n, config = null) => {
   if (!n) {
     return '...';
   }
@@ -29,12 +30,18 @@ const formatStakeAmount = (n) => {
     return '0';
   }
   if (n.lt(new BN('10000000', 10))) {
+    if (config && config.decimals) {
+      return new BigNum(n.toString()).div('1000000000').toString();
+    }
     return '< 0.01';
   }
   n = n.div(new BN('10000000', 10)).toNumber() / 100;
   return n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 };
-const formatAmount = (n) => {
+const formatAmount = (n, config = null) => {
+  if (config && config.decimals) {
+    return new BigNum(n.toString()).div('1000000000').toFixed(9);
+  }
   n = n.div(new BN('10000000', 10)).toNumber() / 100;
   return n.toFixed(2);
 };

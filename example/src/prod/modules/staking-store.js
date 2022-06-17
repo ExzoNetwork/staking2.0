@@ -8,8 +8,6 @@ import fetch from 'cross-fetch';
 import {Buffer} from 'buffer';
 import _ from 'lodash';
 import { findIndex } from 'prelude-ls';
-import { Store } from 'react-notifications-component';
-import 'react-notifications-component/dist/theme.css';
 
 //const solanaWeb3 = require('./index.cjs.js');
 //import * as solanaWeb3 from './index.cjs.js';
@@ -24,7 +22,7 @@ import { cachedCallWithRetries, callWithRetries, invalidateCache, transformNodeR
 
 import EvmToNativeBridgeAbi from './EvmToNativeBridge.js';
 import * as ethereum from 'ethereumjs-tx';
-import Common from '@ethereumjs/common';
+import Common from 'ethereumjs-common';
 // import Store from "../wallet/data-scheme.js";
 import { formatToFixed } from '../format-value';
 import { formNewStakeAccount, creationAccountSubscribe, subscribeToStakeAccount, updateStakeAccount } from './functions';
@@ -144,44 +142,6 @@ class StakingStore {
     this.init();
     if (window) {
       window.staking2_0 = this;
-    }
-
-    const resetSubsc = this.connection._resetSubscriptions;
-    this.connection._resetSubscriptions = () => {
-      console.log('reset subscriptions were made');
-      resetSubsc();
-    }
-
-    const onOpen = this.connection._wsOnOpen;
-    this.connection._wsOnOpen = () => {
-      console.log("on open event");
-      showNotification({message: 'Connection restored'})
-      onOpen();
-    }
-
-    const onClose = this.connection._wsOnClose;
-    const showNotification = ({title, message}, type='success') => {
-      Store.addNotification({
-        title: title || "",
-        message,
-        type,
-        insert: "top",
-        container: "bottom-right",
-//        animationIn: ["animate__animated", "animate__fadeIn"],
-//        animationOut: ["animate__animated", "animate__fadeOut"],
-        dismiss: {
-          duration: 1000,
-          onScreen: false
-        }
-      });
-    }
-    this.connection._wsOnClose = (...args) => {
-      showNotification(
-        { title: "Oops",
-          message: "WebSocket connection closed!"
-        }
-        ,'danger');
-      onClose(...args);
     }
   }
 

@@ -11,8 +11,9 @@ import VelasIcon from './images/velas-blue';
 import IconButton from '@mui/material/IconButton';
 
 const InputValue = (props) => {
-  const { maxValue, type, onClickMax, lang, info } = props;
-  const max_value = formatStakeAmount(maxValue || null);
+  const { maxValue, type, onClickMax, lang, info, maxFractionLength } = props;
+  const max_value = formatStakeAmount(maxValue || null, {decimals: true});
+  console.log("input maxFractionLength", maxFractionLength)
 
   const styleh3 = {
     color: '#fff',
@@ -73,6 +74,7 @@ const InputValue = (props) => {
             value={props.value}
             onChangeText={props.onChange}
             placeholder="0.00"
+            maxFractionLength={maxFractionLength}
             style={{
               color: '#fff',
               backgroundColor: info.app.bgSecond || '#292B52',

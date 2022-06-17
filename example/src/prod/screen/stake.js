@@ -114,7 +114,7 @@ const Stake = (props) => {
     }
     setStakingInProcess(false);
     setValues({amount: ''})
-    stakingStore.chosenValidator.requestStakeAccountsActivation(true);
+    //stakingStore.chosenValidator.requestStakeAccountsActivation(true);
   };
 
   return (
