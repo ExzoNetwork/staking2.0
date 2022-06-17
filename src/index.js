@@ -28,9 +28,9 @@ import { EpochCurrent } from './images/epoch-current';
 import Notice from './notice';
 import SortIcon from '@mui/icons-material/Sort';
 import TransactionsProgress from './modal/TransactionsProgress';
-import index from './index.css' //remove from prod index.js
-import lang from '../lang'; //remove from prod index.js
-import info from '../info'; //remove from prod index.js
+//import index from './index.css' //remove from prod index.js
+//import lang from '../lang'; //remove from prod index.js
+//import info from '../info'; //remove from prod index.js
 import {ErrorParser} from './errorParser';
 
 const style = {
@@ -94,8 +94,8 @@ const styleAlert = {
 const WITHDRAW_TX_SIZE_MORE_THAN_EXPECTED_CODE = 102;
 
 const StakingPage = (props) => {
-  // const { stakingStore, lang, info } = props;  //add to prod index.js
-  const { stakingStore } = props;  //remove from prod index.js
+   const { stakingStore, lang, info } = props;  //add to prod index.js
+//  const { stakingStore } = props;  //remove from prod index.js
 
   const [showStakePage, setShowStakePage] = React.useState({show: false, address: '', name: '', apr: '', status: '', nodePubKey: '', activeStake: '' });
   const onClickRequest = () => {
@@ -973,5 +973,5 @@ const StakingPage = (props) => {
   );
 };
 
-// module.exports = StakingPage;
-export default StakingPage;
+ module.exports = StakingPage;
+//export default StakingPage;
