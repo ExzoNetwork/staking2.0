@@ -332,8 +332,14 @@ class StakingStore {
         new StakingAccountModel(account, this.connection, this.network, this.validatorsBackend)
     );
 
-    const tmp = validatorsFromBackend && validatorsFromBackend.validators ? validatorsFromBackend.validators : (validatorsFromBackend || []);
-    const validators = (tmp || []).map(
+    let tmp = [];
+    if(Array.isArray(validatorsFromBackend)) {
+      tmp = validatorsFromBackend;
+    } else if(validatorsFromBackend?.validators) {
+      tmp = validatorsFromBackend?.validators || [];
+    }
+  
+    const validators = (tmp).map(
       (validator) =>
         new ValidatorModelBacked(validator, this.connection, this.network)
     );
