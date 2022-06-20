@@ -25,7 +25,7 @@ import * as ethereum from 'ethereumjs-tx';
 import Common from 'ethereumjs-common';
 // import Store from "../wallet/data-scheme.js";
 import { formatToFixed } from '../format-value';
-import { formNewStakeAccount, creationAccountSubscribe, subscribeToStakeAccount, updateStakeAccount } from './functions';
+import { formNewStakeAccount } from './functions';
 
 const PRESERVE_BALANCE = new BN('1000000000', 10);
 const MAX_INSTRUCTIONS_PER_WITHDRAW = 18;
@@ -146,7 +146,8 @@ class StakingStore {
   }
 
   checkWSConnection(url) {
-    this.isWebSocketAvailable = 'WebSocket' in window || 'MozWebSocket' in window;
+    this.isWebSocketAvailable =
+      ('WebSocket' in window || 'MozWebSocket' in window)
   }
 
   async reloadWithRetryAndCleanCache() {
@@ -358,7 +359,7 @@ class StakingStore {
     } else if(validatorsFromBackend?.validators) {
       tmp = validatorsFromBackend?.validators || [];
     }
-    
+
     const validators = (tmp).map(
       (validator) =>
         new ValidatorModelBacked(validator, this.connection, this.network)
@@ -392,27 +393,6 @@ class StakingStore {
       epochInfo
     );
   }
-
-  onAccountChangeCallback = (accountModel) => async (updatedAccount) => {
-    const account = accountModel;
-
-    accountModel._isActivationRequested = false;
-    const validator = this.getOpenedValidator();
-    if (validator) {
-      const parsedValidator = this.getDetailsFromValidator(validator);
-      validator.requestStakeAccountsActivation(true);
-    }
-
-    updateStakeAccount(
-      {
-        accounts: this.accounts,
-        account,
-        updatedAccount,
-        connection: this.connection
-      }
-    );
-  }
-
 
   async reloadFromNodeRpc() {
     this.startRefresh();
@@ -906,14 +886,17 @@ class StakingStore {
         const newStakeAccount = await formNewStakeAccount(
           {
             newStakePubkey: stakePubkey,
-            isWebSocketAvailable: this.isWebSocketAvailable,
             connection: this.connection,
             network: this.network,
             validatorsBackend: this.validatorsBackend,
           }
         );
-        const requestActivation = true;
-        this.chosenValidator.addStakingAccount(newStakeAccount, requestActivation);
+        this.chosenValidator.addStakingAccount(newStakeAccount,
+          {
+            requestActivation: true,
+            isWebSocketAvailable: this.isWebSocketAvailable
+          }
+        );
       }
       return signature;
     } catch (err) {
@@ -1085,19 +1068,28 @@ class StakingStore {
     if (_splitStakePubkey) {
       const commitment = 'confirmed';
       await this.connection.confirmTransaction(signature, commitment);
-      const params$ = {
-        accounts: this.accounts,
-        connection: this.connection,
-        isWebSocketAvailable: this.isWebSocketAvailable,
-        newStakePubkey: _splitStakePubkey,
-        validatorsBackend: this.validatorsBackend,
-        network: this.network,
-        onAccountChangeCallback: this.onAccountChangeCallback,
-        currentValidator: this.chosenValidator,
-      };
-      await creationAccountSubscribe(params$);
+
+      if (this.chosenValidator) {
+        const newStakeAccount = await formNewStakeAccount(
+          {
+            newStakePubkey: _splitStakePubkey,
+            connection: this.connection,
+            network: this.network,
+            validatorsBackend: this.validatorsBackend,
+          }
+        );
+        console.log("new splitted acc", newStakeAccount)
+        this.chosenValidator.addStakingAccount(newStakeAccount,
+          {
+            requestActivation: true,
+            isWebSocketAvailable: this.isWebSocketAvailable
+          }
+        );
+      }
     }
-    this.chosenValidator.requestStakeAccountsActivation(true);
+    if (!this.isWebSocketAvailable) {
+      await this.reloadWithRetryAndCleanCache();
+    }
     return signature;
   }
 
@@ -1109,6 +1101,7 @@ class StakingStore {
     return clone.serializeMessage().length + 65;
   }
 
+  //Withdraw
   async withdrawRequested(address) {
     let transaction = null;
     let sendAmount = new BN('0');
@@ -1192,6 +1185,9 @@ class StakingStore {
       return res;
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
+    if (!this.isWebSocketAvailable) {
+      await this.reloadWithRetryAndCleanCache();
+    }
     return res;
   }
 

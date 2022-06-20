@@ -569,7 +569,10 @@ const StakingPage = (props) => {
     useEffect(() => {
       const validator = stakingStore.chosenValidator;
       setValidator(validator);
-      validator.requestStakeAccountsActivation();
+      const stakeDataWasLoaded =
+        !validator.myStake || validator.myStake.isZero() || validator.totalActiveStake !== null && validator.totalInactiveStake !== null;
+      const force = !stakeDataWasLoaded;
+      validator.requestStakeAccountsActivation(force);
     }, [_validator]);
 
     if (!showDetails || !stakingStore.chosenValidator) return null;
@@ -666,8 +669,8 @@ const StakingPage = (props) => {
             setWithdrawInProgress(false);
           }
           const onPressReload = async () => {
-            console.log("[onPressReload]")
             await stakingStore.reloadWithRetryAndCleanCache();
+            await stakingStore.chosenValidator.requestStakeAccountsActivation(true, stakingStore.isWebSocketAvailable);
           }
 
           const goToStake = () => {

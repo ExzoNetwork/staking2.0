@@ -13,7 +13,6 @@ import IconButton from '@mui/material/IconButton';
 const InputValue = (props) => {
   const { maxValue, type, onClickMax, lang, info, maxFractionLength } = props;
   const max_value = formatStakeAmount(maxValue || null, {decimals: true});
-  console.log("input maxFractionLength", maxFractionLength)
 
   const styleh3 = {
     color: '#fff',

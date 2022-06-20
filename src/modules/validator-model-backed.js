@@ -4,7 +4,7 @@ import { findIndex } from 'prelude-ls';
 import { StakingAccountModel } from './staking-account-model.js';
 import { cachedCallWithRetries } from './utils';
 import { rewardsStore } from './rewards-store';
-import { subscribeToStakeAccount, parseStakeAccount } from './functions';
+import { parseStakeAccount } from './functions';
 import { PublicKey } from '@velas/web3';
 //const solanaWeb3 = require('./index.cjs.js');
 //const solanaWeb3 = require('@velas/web3');
@@ -258,11 +258,14 @@ class ValidatorModelBacked {
     });
   }
 
-  onAccountChangeCallback = (accountModel) => async (updatedAccount) => {
-    const account = accountModel;
+  onAccountChangeCallback = (stakingAccount) => async (updatedAccount) => {
+    if (!stakingAccount || !(stakingAccount instanceof StakingAccountModel)) {
+      throw new Error('stakingAccount invalid');
+    }
+    const { account } = stakingAccount;
     this.updateStakeAccount(
       {
-        account,
+        stakingAccount,
         updatedAccount,
         validator: this,
       }
@@ -271,11 +274,12 @@ class ValidatorModelBacked {
   }
 
 
-  updateStakeAccount(params) {
-    const { account, updatedAccount, validator, cb } = params;
-
+  async updateStakeAccount(params) {
+    const { stakingAccount, updatedAccount, validator, cb } = params;
+    console.log('on account change callback', {stakingAccount, updatedAccount})
+    const { account } = stakingAccount;
     if (!account) {
-      console.log("No account was found. No update!", {updatedAccount});
+      console.log("No account was found");
       return;
     }
 
@@ -283,28 +287,11 @@ class ValidatorModelBacked {
       for (var key in src) obj[key] = src[key];
       return obj;
     }
-
     const { lamports, lamportsStr, data } = updatedAccount;
-    console.log("Update stake account!", {pubkey: account.pubkey, lamports, lamportsStr});
-
     if (!data || !data.parsed || !data.parsed.info) {
-      //this.removeStakingAccount(account);
-      const index = findIndex( (it) => {
-        return it.pubkey === account.pubkey;
-      })(this.backendData.stakingAccounts);
-
       //Remove from staking accounts list
-      if (index > -1) {
-        if (account.subscriptionID) {
-          delete this.subscriptionIDs[`${account.pubkey}`];
-          //Deregister an account notification callback
-          console.log("Deregister an account notification callback", account.subscriptionID);
-          this.connection.removeAccountChangeListener(account.subscriptionID);
-        }
-      }
-      if (validator) {
-        validator.removeStakingAccount(params.account);
-      }
+      await this.removeStakingAccount(stakingAccount);
+
     } else {
       const { meta, stake } = data.parsed.info;
       const { lockup, rentExemptReserve, authorized } = meta;
@@ -316,7 +303,7 @@ class ValidatorModelBacked {
       const voter = delegation.voter;
 
       const parsedAccount = parseStakeAccount({accountInfo: updatedAccount, newStakePubkey: account.pubkey});
-
+      console.log("update stake add with new data", parsedAccount);
       const updates = {
         lamports: updatedAccount.lamports,
         stake: _stake,
@@ -328,47 +315,68 @@ class ValidatorModelBacked {
         deactivationEpoch }
       importAll(account, updates);
     }
+    const res = await stakingAccount.requestActivation();
+    console.log("DO requestActivation to", account.pubkey);
   }
 
 
-  removeStakingAccount(stakingAccount) {
-//    if (!stakingAccount || !(stakingAccount instanceof StakingAccountModel)) {
-//      throw new Error('stakingAccount invalid');
-//    }
-    const index = this.backendData.stakingAccounts.findIndex((it) => {return it.address === stakingAccount.address});
+  async removeStakingAccount(stakingAccount) {
+    if (!stakingAccount || !(stakingAccount instanceof StakingAccountModel)) {
+      throw new Error('stakingAccount invalid');
+    }
+    const index = this.backendData.stakingAccounts.findIndex((it) => {return it.account.pubkey === stakingAccount.account.pubkey});
     if (index > -1) {
-      this.backendData.stakingAccounts = this.backendData.stakingAccounts.splice(index, 1);
-      delete this.stakingAccountsKV[stakingAccount.address]
+      this.backendData.stakingAccounts.splice(index, 1);
+      delete this.stakingAccountsKV[stakingAccount.address];
+      await this.connection.removeAccountChangeListener(stakingAccount.account.subscriptionID);
+      delete this.subscriptionIDs[`${stakingAccount.account.pubkey}`];
     }
   }
-
-  addStakingAccount(stakingAccount, requestActivation=false) {
+  addStakingAccount(stakingAccount, config) {
     if (!stakingAccount || !(stakingAccount instanceof StakingAccountModel)) {
       throw new Error('stakingAccount invalid');
     }
     if (this.stakingAccountsKV[stakingAccount.address])
       return;
-    if (!stakingAccount.account) {
-      console.error('stakingAccount', stakingAccount);
-      throw new Error("validator-model-backend [addStakingAccount] err: stakingAccount.account is not defined")
-    }
-    subscribeToStakeAccount(
+    const _isWebSocketAvailable =
+      (typeof config?.isWebSocketAvailable === 'undefined') ? true : config?.isWebSocketAvailable
+    this.subscribeToStakeAccount(
       {
-        account: stakingAccount.account,
+        stakingAccount: stakingAccount,
         accounts: this.backendData.stakingAccounts,
         connection: this.connection,
         publicKey: new PublicKey(stakingAccount.publicKey),
         onAccountChangeCallback: this.onAccountChangeCallback,
+        isWebSocketAvailable: _isWebSocketAvailable,
       }
     );
 
     this.backendData.stakingAccounts.push(stakingAccount);
     this.stakingAccountsKV[stakingAccount.address] = true;
-    if (requestActivation)
+    // If ws connection is not available force request active/inactive stakes
+    if (!_isWebSocketAvailable)
       this.requestStakeAccountsActivation(true);
   }
 
-  async requestStakeAccountsActivation(force=false) {
+  subscribeToStakeAccount({ stakingAccount, publicKey, connection, onAccountChangeCallback, isWebSocketAvailable }) {
+    if (!stakingAccount || !(stakingAccount instanceof StakingAccountModel)) {
+      throw new Error('stakingAccount invalid');
+    }
+    const { account } = stakingAccount;
+    if (!account) return;
+    const { pubkey } = account;
+    if (account.subscriptionID || this.subscriptionIDs[`${pubkey}`]){
+      return;
+    }
+    const commitment = 'confirmed';
+    const callback = onAccountChangeCallback(stakingAccount);
+
+    const subscriptionID = connection.onAccountChange(publicKey, callback, commitment);
+    this.subscriptionIDs[`${pubkey}`] = subscriptionID;
+    account.subscriptionID = subscriptionID;
+  }
+
+  async requestStakeAccountsActivation(force=false,isWebSocketAvailable=true) {
     let accounts = this.backendData.stakingAccounts;
     let i = 0;
     for (let account of accounts) {
@@ -382,10 +390,13 @@ class ValidatorModelBacked {
           (res?.error?.message || "").indexOf("account not found") > -1;
         if (res && res.error && IS_ACCOUNT_NOT_FOUND_ERROR) {
           const accountAddress = res.address;
-          const index = findIndex( (it) => {
-            return it.account.pubkey === accountAddress;
-          })(this.backendData.stakingAccounts);
-          this.backendData.stakingAccounts.splice(index, 1);
+          if (!isWebSocketAvailable) {
+            const accountAddress = res.address;
+            const index = findIndex( (it) => {
+              return it.account.pubkey === accountAddress;
+            })(this.backendData.stakingAccounts);
+            this.backendData.stakingAccounts.splice(index, 1);
+          }
         }
       } catch (err){
         console.warn("requestStakeAccountsActivation caught", err);
