@@ -481,7 +481,7 @@ const TabsContainer = (props) => {
           </TabPanel>
         </>
         :
-        <TabPanel value={value} index={0}>
+        <TabPanel value={0} index={0}>
           <BlockStake {...props} />
         </TabPanel>
       }
