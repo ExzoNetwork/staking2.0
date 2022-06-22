@@ -1,12 +1,11 @@
 import * as React from 'react';
+import { useEffect } from 'react';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Box from '@mui/material/Box';
 import ButtonBlock from './buttonBlock';
 import FlatList from 'flatlist-react';
-import InfoIcon from '@mui/icons-material/Info';
-import IconButton from '@mui/material/IconButton';
-import Tooltip from '@mui/material/Tooltip';
+import Rectangle from './components/Rectangle';
 import { formatStakeAmount, formatReward, formatToFixed } from './format-value';
 import { Observer } from 'mobx-react';
 import DominanceIcon from './images/dominance-icon';
@@ -26,40 +25,6 @@ function TabPanel(props) {
   );
 }
 
-const Rectangle = (props) => {
-  const mb = {
-    marginBlock: 5,
-    minHeight: 10,
-    fontSize: 12,
-    textTransform: 'uppercase',
-  };
-  const link_active_stake = 'https://support.velas.com/hc/en-150/articles/360021044820-Delegation-Warmup-and-Cooldown';
-
-  const Info = (props) => {
-    const {lang, info} = props;
-    return (
-      <Tooltip
-      enterTouchDelay={0}
-      title={<div>{props.titleInfo} {props.link && <a href={link_active_stake} id='link' target="_blank" style={{color: '#0BFFB7', cursor: 'pointer', textDecoration: 'underline',}}>
-          {lang.read || "Read More"}.
-        </a>}</div>}
-      style={{position: 'absolute', top: 5, right: 5}}
-      >
-      <IconButton>
-        <InfoIcon color='inherit' style={{color: "#FFF", fontSize: 10, }} id='info-btn'/>
-      </IconButton>
-    </Tooltip>
-    )
-  }
-  return (
-    <div style={props.style}>
-      {props.titleInfo && <Info {...props}/>}
-      <div style={mb}>{props.row1}</div>
-      <div style={mb} id={props.id}>{props.row2}</div>
-      <div style={{...mb, fontSize: 10, color: '#ffffff80'}}>{props.row3}</div>
-    </div>
-  );
-};
 const leftRectangle = {
   backgroundColor: '#1a1f4f',
   width: 190,
@@ -442,6 +407,15 @@ function Rewards(props) {
 const TabsContainer = (props) => {
   const {lang, info} = props;
   const [value, setValue] = React.useState(0);
+
+  useEffect(() => {
+    const stakingAccounts = props.stakingStore?.chosenValidator?.stakingAccounts || [];
+    // Switch to 1st tab in case there is no stake accounts left (double check)
+    if (stakingAccounts.length <= 0) {
+      setValue(0);
+    }
+  },[props.stakingStore.chosenValidator.stakingAccounts])
+
   if (!props.validatorDetails) return null;
   const { myStake } = props.validatorDetails;
   const handleChange = (event, newValue) => {
@@ -450,7 +424,7 @@ const TabsContainer = (props) => {
   const BORDER_COLOR = 'rgba(255, 255, 255, 0.18)';
 
   return (
-    <Box sx={{width: '100%'}}>
+    <Box className={"TabsContainer"} sx={{width: '100%'}}>
       { !myStake.isZero() &&
         <Box sx={{borderBottom: 1, borderColor: BORDER_COLOR}}>
           <Tabs
