@@ -333,7 +333,10 @@ class ValidatorModelBacked {
     }
   }
   addStakingAccount(stakingAccount, config) {
-    if (!stakingAccount || !(stakingAccount instanceof StakingAccountModel)) {
+    if (!stakingAccount) {
+      throw new Error('Stake account subscription failed.');
+    }
+    if (!(stakingAccount instanceof StakingAccountModel)) {
       throw new Error('stakingAccount invalid');
     }
     if (this.stakingAccountsKV[stakingAccount.address])
@@ -366,14 +369,21 @@ class ValidatorModelBacked {
     if (!account) return;
     const { pubkey } = account;
     if (account.subscriptionID || this.subscriptionIDs[`${pubkey}`]){
+      //console.log('ignore subscription for account', pubkey)
       return;
     }
-    const commitment = 'confirmed';
-    const callback = onAccountChangeCallback(stakingAccount);
+    try {
+      const commitment = 'confirmed';
+      const callback = onAccountChangeCallback(stakingAccount);
 
-    const subscriptionID = connection.onAccountChange(publicKey, callback, commitment);
-    this.subscriptionIDs[`${pubkey}`] = subscriptionID;
-    account.subscriptionID = subscriptionID;
+      const subscriptionID = connection.onAccountChange(publicKey, callback, commitment);
+      this.subscriptionIDs[`${pubkey}`] = subscriptionID;
+      account.subscriptionID = subscriptionID;
+    } catch (err) {
+      console.error("onAccountChange subscription failed. Request stake accounts activation manually");
+      const force = true;
+      this.requestStakeAccountsActivation(force, isWebSocketAvailable);
+    }
   }
 
   async requestStakeAccountsActivation(force=false,isWebSocketAvailable=true) {

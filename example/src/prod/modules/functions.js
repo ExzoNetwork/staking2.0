@@ -14,8 +14,14 @@ export const formNewStakeAccount = async function(params) {
   if (!connection) throw new Error('[creationAccountSubscribe] connection is required!');
 
   const accountInfo = await connection.getParsedAccountInfo(newStakePubkey, 'confirmed');
-  const account = parseStakeAccount({accountInfo: accountInfo.value, newStakePubkey});
-  const stakeAccountModel = new StakingAccountModel(account, connection, network, validatorsBackend);
+
+  let stakeAccountModel = null;
+  try {
+    const account = parseStakeAccount({accountInfo: accountInfo?.value, newStakePubkey});
+    stakeAccountModel = new StakingAccountModel(account, connection, network, validatorsBackend);
+  } catch (err) {
+    console.error(err);
+  }
   return stakeAccountModel;
 }
 
@@ -24,7 +30,7 @@ export const formNewStakeAccount = async function(params) {
 export const parseStakeAccount = function({accountInfo, newStakePubkey}) {
 
   if (!accountInfo || !accountInfo.data)
-    throw new Error('[addStakeAccount] data prop was now defined in stake account object');
+    throw new Error('[addStakeAccount] data prop was not defined in stake account object');
 
   const { data, lamports, lamportsStr, rentEpoch } = accountInfo;
   const { info, type } = data.parsed;
