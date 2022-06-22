@@ -2,8 +2,23 @@ import { PublicKey } from '@velas/web3';
 import { findIndex } from 'prelude-ls';
 import { StakingAccountModel } from './staking-account-model.js';
 
+const getParsedAccountInfo = async (pubkey, config) => {
+  const { connection, start } = config;
+  const now = Date.now();
+  const ONE_MINUTE = 60 * 1000;
+  if ((now - start) > ONE_MINUTE) {
+    console.error(`getParsedAccountInfo ${ONE_MINUTE} timeout expired. Failed getting ${pubkey} account info.`);
+    return null;
+  }
+  const accountInfo = await connection.getParsedAccountInfo(pubkey, 'confirmed');
+  if (!accountInfo?.value) {
+    const res = getParsedAccountInfo(pubkey, config);
+    return res;
+  }
+  return accountInfo;
+}
 
-export const formNewStakeAccount = async function(params) {
+export const formNewStakeAccount = async (params) => {
   const {
     connection,
     network,
@@ -13,7 +28,7 @@ export const formNewStakeAccount = async function(params) {
   const commitment = 'confirmed';
   if (!connection) throw new Error('[creationAccountSubscribe] connection is required!');
 
-  const accountInfo = await connection.getParsedAccountInfo(newStakePubkey, 'confirmed');
+  const accountInfo = await getParsedAccountInfo(newStakePubkey, { connection, start: Date.now() });
 
   let stakeAccountModel = null;
   try {

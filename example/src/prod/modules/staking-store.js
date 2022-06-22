@@ -158,6 +158,22 @@ class StakingStore {
   async init() {
     await tryFixCrypto();
     await this.reloadWithRetry();
+    await this.updateVLXBalances();
+  }
+
+  async updateVLXBalances() {
+    if (this.updateVLXBalances.subscriptionID)
+      //await this.connection.removeAccountChangeListener(this.updateVLXBalances.subscriptionID);
+      return;
+    const callback = (updatedAccount) => {
+      console.log("updateVLXBalances",updatedAccount)
+      const lamportsStr = updatedAccount.lamportsStr;
+      this.vlxNativeBalance = lamportsStr ? new BN(lamportsStr, 10) : new BN('0');
+      this.getEvmBalance();
+    }
+    const commitment = "confirmed";
+    const subscriptionID = this.connection.onAccountChange(this.publicKey, callback, commitment);
+    this.updateVLXBalances.subscriptionID = subscriptionID;
   }
 
   async reloadWithRetry() {
@@ -392,6 +408,23 @@ class StakingStore {
       stakingAccounts,
       epochInfo
     );
+  }
+
+  async getEvmBalance () {
+    const balanceEvmRes = await fetch(this.evmAPI, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: `{"jsonrpc":"2.0","id":${Date.now()},"method":"eth_getBalance","params":["${
+        this.evmAddress
+      }","latest"]}`,
+    });
+    const balanceEvmJson = await balanceEvmRes.json();
+    this.vlxEvmBalance = balanceEvmJson ? new BN(balanceEvmJson.result.substr(2), 16).div(
+      new BN(1e9)
+    ) : new BN('0');
   }
 
   async reloadFromNodeRpc() {
