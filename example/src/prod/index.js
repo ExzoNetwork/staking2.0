@@ -564,6 +564,7 @@ const StakingPage = (props) => {
     const { address, activeStake, apr, name, nodePubKey, show, status } = details;
     const [ copy, setCopy ] = React.useState(false);
     const [ _details$, setDetails ] = React.useState(false);
+    const [ _stakeDataWasLoaded, setStakeDataWasLoaded ] = React.useState(false);
 
 
     useEffect(() => {
@@ -571,9 +572,10 @@ const StakingPage = (props) => {
       setValidator(validator);
       const stakeDataWasLoaded =
         !validator.myStake || validator.myStake.isZero() || validator.totalActiveStake !== null && validator.totalInactiveStake !== null;
+      setStakeDataWasLoaded(stakeDataWasLoaded);
       const force = !stakeDataWasLoaded;
       validator.requestStakeAccountsActivation(force);
-    }, [_validator]);
+    }, [_stakeDataWasLoaded]);
 
     if (!showDetails || !stakingStore.chosenValidator) return null;
     const withdrawAvailable = () => {
