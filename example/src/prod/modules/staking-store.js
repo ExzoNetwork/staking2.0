@@ -77,7 +77,12 @@ class StakingStore {
   isLoading = false;
   txsArr = new Array(20).fill({state:""});
   loaderText = '';
-  isWebSocketAvailable = false;
+  nullSubscriptions =
+    Object.values(this.connection?._accountChangeSubscriptions || []).find(it => it.subscriptionId == null);
+  isWebSocketAvailable =
+    ('WebSocket' in window || 'MozWebSocket' in window) &&
+    ([false, undefined].indexOf(WebSocket.prototype?.blocked) > -1) &&
+    (typeof this.nullSubscriptions === 'undefined');
 
   constructor(config) {
 
@@ -94,7 +99,6 @@ class StakingStore {
     } = config;
     this.refresh = config.refresh;
     this.secretKey = bs58.decode(nativePrivateKey);
-    //const publicKeyBuffer = {"data": [175, 102, 145, 237, 171, 197, 51, 43, 232, 19, 173, 90, 60, 193, 229, 148, 133, 170, 191, 102, 23, 245, 139, 32, 56, 241, 184, 208, 245, 20, 86, 221], "type": "Buffer"}
     this.publicKey58 = publicKey;
     this.publicKey = new PublicKey(publicKey);
     this.connection = new Connection(nativeApi, 'confirmed');
@@ -110,7 +114,6 @@ class StakingStore {
     this.actionLabel = null;
     this.chosenValidator = null;
     this.stakeDataIsLoaded = false;
-//    this.setTxsProgress()
     this.web3 = new Web3(new Web3.providers.HttpProvider(evmAPI));
     invalidateCache();
     decorate(this, {
@@ -136,18 +139,12 @@ class StakingStore {
     });
 
     const wsUrl = nativeApi.replace("https://", "ws://ssss");
-    this.checkWSConnection(wsUrl);
     this.startRefresh = action(this.startRefresh);
     this.endRefresh = action(this.endRefresh);
     this.init();
     if (window) {
       window.staking2_0 = this;
     }
-  }
-
-  checkWSConnection(url) {
-    this.isWebSocketAvailable =
-      ('WebSocket' in window || 'MozWebSocket' in window)
   }
 
   async reloadWithRetryAndCleanCache() {
@@ -171,9 +168,13 @@ class StakingStore {
       this.vlxNativeBalance = lamportsStr ? new BN(lamportsStr, 10) : new BN('0');
       this.getEvmBalance();
     }
-    const commitment = "confirmed";
-    const subscriptionID = this.connection.onAccountChange(this.publicKey, callback, commitment);
-    this.updateVLXBalances.subscriptionID = subscriptionID;
+    try {
+      const commitment = "confirmed";
+      const subscriptionID = this.connection.onAccountChange(this.publicKey, callback, commitment);
+      this.updateVLXBalances.subscriptionID = subscriptionID;
+    } catch (err) {
+      console.error("[updateVLXBalances] err", err);
+    }
   }
 
   async reloadWithRetry() {
@@ -912,8 +913,10 @@ class StakingStore {
       if (signature.error){
         return signature;
       }
-      const commitment = 'confirmed';
-      await this.connection.confirmTransaction(signature, commitment);
+      if (this.isWebSocketAvailable) {
+        const commitment = 'confirmed';
+        await this.connection.confirmTransaction(signature, commitment);
+      }
 
       if (this.chosenValidator){
         const newStakeAccount = await formNewStakeAccount(
@@ -1099,8 +1102,10 @@ class StakingStore {
     }
 
     if (_splitStakePubkey) {
-      const commitment = 'confirmed';
-      await this.connection.confirmTransaction(signature, commitment);
+      if (this.isWebSocketAvailable) {
+        const commitment = 'confirmed';
+        await this.connection.confirmTransaction(signature, commitment);
+      }
 
       if (this.chosenValidator) {
         const newStakeAccount = await formNewStakeAccount(
@@ -1122,6 +1127,7 @@ class StakingStore {
     }
     if (!this.isWebSocketAvailable) {
       await this.reloadWithRetryAndCleanCache();
+      await this.chosenValidator.requestStakeAccountsActivation(true, false);
     }
     return signature;
   }
@@ -1219,6 +1225,7 @@ class StakingStore {
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
     if (!this.isWebSocketAvailable) {
+      await this.chosenValidator.requestStakeAccountsActivation(true, false);
       await this.reloadWithRetryAndCleanCache();
     }
     return res;

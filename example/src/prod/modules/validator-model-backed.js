@@ -355,6 +355,7 @@ class ValidatorModelBacked {
       this.requestStakeAccountsActivation(true);
   }
 
+
   subscribeToStakeAccount({ stakingAccount, publicKey, connection, onAccountChangeCallback, isWebSocketAvailable }) {
     if (!stakingAccount || !(stakingAccount instanceof StakingAccountModel)) {
       throw new Error('stakingAccount invalid');
@@ -371,12 +372,15 @@ class ValidatorModelBacked {
       const callback = onAccountChangeCallback(stakingAccount);
 
       const subscriptionID = connection.onAccountChange(publicKey, callback, commitment);
+      console.log("subscriptionID", subscriptionID);
+      connection._rpcWebSocketConnected = true;
       this.subscriptionIDs[`${pubkey}`] = subscriptionID;
       account.subscriptionID = subscriptionID;
     } catch (err) {
+      connection._rpcWebSocketConnected = false;
       console.error("onAccountChange subscription failed. Request stake accounts activation manually");
       const force = true;
-      this.requestStakeAccountsActivation(force, isWebSocketAvailable);
+      this.requestStakeAccountsActivation(force, true);
     }
   }
 
@@ -389,20 +393,19 @@ class ValidatorModelBacked {
       if (force) {
         account.isActivationRequested = false;
       }
-      try{
+      try {
         const res = await account.requestActivation();
         //Suppose this stake account was already withdrawed.
         const IS_ACCOUNT_NOT_FOUND_ERROR =
           (res?.error?.message || "").indexOf("account not found") > -1;
         if (res && res.error && IS_ACCOUNT_NOT_FOUND_ERROR) {
           const accountAddress = res.address;
-          if (!isWebSocketAvailable) {
-            const accountAddress = res.address;
+          //if (!isWebSocketAvailable) {
             const index = findIndex( (it) => {
               return it.account.pubkey === accountAddress;
             })(this.backendData.stakingAccounts);
             this.backendData.stakingAccounts.splice(index, 1);
-          }
+          //}
         }
       } catch (err){
         console.warn("requestStakeAccountsActivation caught", err);
