@@ -6,11 +6,6 @@ import { cachedCallWithRetries } from './utils';
 import { rewardsStore } from './rewards-store';
 import { parseStakeAccount } from './functions';
 import { PublicKey } from '@velas/web3';
-//const solanaWeb3 = require('./index.cjs.js');
-//const solanaWeb3 = require('@velas/web3');
-
-//import * as solanaWeb3 from '@velas/web3';
-const solanaWeb3 = {}
 
 class ValidatorModelBacked {
   network = null;
@@ -129,7 +124,7 @@ class ValidatorModelBacked {
       if (acc.state !== 'activating' && acc.state !== 'active') {
         continue;
       }
-      const unixTimestamp = acc.unixTimestamp;
+      const unixTimestamp = acc.lockupUnixTimestamp;
       if (unixTimestamp) {
         const now = Date.now() / 1000;
         if (unixTimestamp > now) continue;
@@ -201,7 +196,7 @@ class ValidatorModelBacked {
       if (!acc.activeStake) {
         return null;
       }
-      const unixTimestamp = acc.unixTimestamp;
+      const unixTimestamp = acc.lockupUnixTimestamp;
       if (unixTimestamp) {
         const now = Date.now() / 1000;
         if (unixTimestamp > now) continue;
@@ -223,7 +218,7 @@ class ValidatorModelBacked {
       if (!acc.inactiveStake) {
         return null;
       }
-      const unixTimestamp = acc.unixTimestamp;
+      const unixTimestamp = acc.lockupUnixTimestamp;
       if (unixTimestamp) {
         const now = Date.now() / 1000;
         if (unixTimestamp > now) continue;
@@ -267,7 +262,6 @@ class ValidatorModelBacked {
       {
         stakingAccount,
         updatedAccount,
-        validator: this,
       }
     );
     this.requestStakeAccountsActivation(true);
@@ -275,7 +269,7 @@ class ValidatorModelBacked {
 
 
   async updateStakeAccount(params) {
-    const { stakingAccount, updatedAccount, validator, cb } = params;
+    const { stakingAccount, updatedAccount } = params;
     console.log('on account change callback', {stakingAccount, updatedAccount})
     const { account } = stakingAccount;
     if (!account) {
@@ -290,8 +284,9 @@ class ValidatorModelBacked {
     const { lamports, lamportsStr, data } = updatedAccount;
     if (!data || !data.parsed || !data.parsed.info) {
       //Remove from staking accounts list
+      //setTimeout(async ()=>{
       await this.removeStakingAccount(stakingAccount);
-
+      //}, 10000);
     } else {
       const { meta, stake } = data.parsed.info;
       const { lockup, rentExemptReserve, authorized } = meta;
@@ -316,7 +311,6 @@ class ValidatorModelBacked {
       importAll(account, updates);
     }
     const res = await stakingAccount.requestActivation();
-    console.log("DO requestActivation to", account.pubkey);
   }
 
 
@@ -387,6 +381,8 @@ class ValidatorModelBacked {
   }
 
   async requestStakeAccountsActivation(force=false,isWebSocketAvailable=true) {
+    if (this.requestStakeAccountsActivation.loading) return;
+    this.requestStakeAccountsActivation.loading = true;
     let accounts = this.backendData.stakingAccounts;
     let i = 0;
     for (let account of accounts) {
@@ -413,6 +409,7 @@ class ValidatorModelBacked {
       }
       i++;
     }
+    this.requestStakeAccountsActivation.loading = false;
   }
 }
 
