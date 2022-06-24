@@ -745,6 +745,7 @@ class StakingStore {
     const fromPubkey = this.publicKey;
     const addressesHs = Object.create(null);
     await when(() => !!this.accounts);
+    const validatorAccountsMap = this.chosenValidator.stakingAccountsKV;
     for (let i = 0; i < this.accounts.length; i++) {
       addressesHs[this.accounts[i].address] = true;
     }
@@ -757,7 +758,7 @@ class StakingStore {
         StakeProgram.programId
       );
       const toBase58 = stakePublilcKey.toBase58();
-      if (!addressesHs[toBase58] && !this.seedUsed[i]) {
+      if (!addressesHs[toBase58] && !this.seedUsed[i] && !validatorAccountsMap[toBase58]) {
         break;
       }
       i++;
@@ -914,8 +915,12 @@ class StakingStore {
         return signature;
       }
       if (this.isWebSocketAvailable) {
-        const commitment = 'confirmed';
-        await this.connection.confirmTransaction(signature, commitment);
+        try {
+          const commitment = 'confirmed';
+          await this.connection.confirmTransaction(signature, commitment);
+        } catch (error) {
+          console.error("confirmTransaction error", error);
+        }
       }
 
       if (this.chosenValidator){
@@ -1103,8 +1108,12 @@ class StakingStore {
 
     if (_splitStakePubkey) {
       if (this.isWebSocketAvailable) {
-        const commitment = 'confirmed';
-        await this.connection.confirmTransaction(signature, commitment);
+        try{
+          const commitment = 'confirmed';
+          await this.connection.confirmTransaction(signature, commitment);
+        } catch (err) {
+          console.error('[requestWithdraw] confirmTransaction error', err);
+        }
       }
 
       if (this.chosenValidator) {
