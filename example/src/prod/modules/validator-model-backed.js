@@ -313,6 +313,10 @@ class ValidatorModelBacked {
     const res = await stakingAccount.requestActivation();
   }
 
+  getStakingAccountByAddress(address) {
+    if (typeof address !== 'string') throw new Error('[getStakingAccountByAddress] address must be string type.')
+    return this.backendData.stakingAccounts.filter((it) => {return it.account.pubkey === address});
+  }
 
   async removeStakingAccount(stakingAccount) {
     if (!stakingAccount || !(stakingAccount instanceof StakingAccountModel)) {
@@ -337,6 +341,7 @@ class ValidatorModelBacked {
       return;
     const _isWebSocketAvailable =
       (typeof config?.isWebSocketAvailable === 'undefined') ? true : config?.isWebSocketAvailable
+
     this.subscribeToStakeAccount(
       {
         stakingAccount: stakingAccount,
@@ -347,6 +352,7 @@ class ValidatorModelBacked {
         isWebSocketAvailable: _isWebSocketAvailable,
       }
     );
+
 
     this.backendData.stakingAccounts.push(stakingAccount);
     this.stakingAccountsKV[stakingAccount.address] = true;
@@ -370,7 +376,6 @@ class ValidatorModelBacked {
     try {
       const commitment = 'confirmed';
       const callback = onAccountChangeCallback(stakingAccount);
-
       const subscriptionID = connection.onAccountChange(publicKey, callback, commitment);
       console.log("subscriptionID", subscriptionID);
       connection._rpcWebSocketConnected = true;
@@ -378,7 +383,7 @@ class ValidatorModelBacked {
       account.subscriptionID = subscriptionID;
     } catch (err) {
       connection._rpcWebSocketConnected = false;
-      console.error("onAccountChange subscription failed. Request stake accounts activation manually");
+      console.error("onAccountChange subscription failed. Request stake accounts activation manually", err);
       const force = true;
       this.requestStakeAccountsActivation(force, true);
     }
