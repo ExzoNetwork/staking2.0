@@ -365,7 +365,6 @@ class ValidatorModelBacked {
 
 
   subscribeToStakeAccount({ stakingAccount, publicKey, connection, onAccountChangeCallback, isWebSocketAvailable }) {
-    console.log('[subscribeToStakeAccount]')
     if (!stakingAccount || !(stakingAccount instanceof StakingAccountModel)) {
       throw new Error('stakingAccount invalid');
     }

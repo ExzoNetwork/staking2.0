@@ -174,7 +174,7 @@ const DetailsValidator = (props) => {
         }
         const onPressReload = async () => {
           await stakingStore.reloadWithRetryAndCleanCache();
-          await stakingStore.chosenValidator.requestStakeAccountsActivation(true, stakingStore.isWebSocketAvailable);
+          await stakingStore.chosenValidator.requestStakeAccountsActivation(true, stakingStore.isWebSocketAvailable());
         }
 
         const goToStake = () => {
@@ -190,7 +190,7 @@ const DetailsValidator = (props) => {
         const dominance = _details.dominance || new BN(0);
         const apr = formatToFixed((_details.apr || 0) * 100) || 0;
         const myActiveStake =  _details.myActiveStake || '0';
-        const onPressReloadAction = stakingStore.isWebSocketAvailable ? null : onPressReload;
+        const onPressReloadAction = stakingStore.isWebSocketAvailable() ? null : onPressReload;
 
         return (
           <>
