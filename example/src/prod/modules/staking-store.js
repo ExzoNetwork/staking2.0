@@ -145,7 +145,7 @@ class StakingStore {
   isWebSocketAvailable() {
     return ('WebSocket' in window || 'MozWebSocket' in window) &&
       ([false, undefined].indexOf(WebSocket.prototype?.blocked) > -1) &&
-      (typeof this.nullSubscriptions === 'undefined')
+      (typeof (Object.values(this.connection?._accountChangeSubscriptions || []).find(it => it.subscriptionId == null)) === 'undefined')
       //&& this.connection._rpcWebSocketConnected === true;
   }
 
@@ -161,7 +161,7 @@ class StakingStore {
   }
 
   async updateVLXBalances() {
-    if (this.updateVLXBalances.subscriptionID)
+    if (this.updateVLXBalances[`subscriptionID_${this.publicKey58}`])
       //await this.connection.removeAccountChangeListener(this.updateVLXBalances.subscriptionID);
       return;
     const callback = (updatedAccount) => {
@@ -173,7 +173,7 @@ class StakingStore {
     try {
       const commitment = "confirmed";
       const subscriptionID = this.connection.onAccountChange(this.publicKey, callback, commitment);
-      this.updateVLXBalances.subscriptionID = subscriptionID;
+      this.updateVLXBalances[`subscriptionID_${this.publicKey58}`] = subscriptionID;
     } catch (err) {
       console.error("[updateVLXBalances] err", err);
     }
@@ -400,7 +400,11 @@ class StakingStore {
         }
         continue;
       }
-      validator.addStakingAccount(account);
+      validator.addStakingAccount(account,
+        {
+         requestActivation: true,
+         isWebSocketAvailable: this.isWebSocketAvailable()
+        });
     }
     const rent = await this.connection.getMinimumBalanceForRentExemption(200);
     this.endRefresh(
@@ -507,7 +511,11 @@ class StakingStore {
         }
         continue;
       }
-      validator.addStakingAccount(account);
+      validator.addStakingAccount(account,
+        {
+         requestActivation: true,
+         isWebSocketAvailable: this.isWebSocketAvailable()
+       });
     }
     const rent = await this.connection.getMinimumBalanceForRentExemption(200);
     this.endRefresh(
@@ -1103,6 +1111,15 @@ class StakingStore {
 
     if (this.txsProgress.filter(it => it.transaction).length > 1)
       return {error: true, code: WITHDRAW_TX_SIZE_MORE_THAN_EXPECTED_CODE};
+
+    const totalAmount = new BN('0');
+    validator.stakingAccounts.map(it => {
+      const {lamports} = it.account;
+      totalAmount.add(new BN(lamports))
+    });
+    const totalAmountStr = totalAmount.toString();
+    console.log("totalAmountStr", totalAmountStr);
+    console.log("sendAmount", sendAmount);
 
     const signature = await this.sendTransaction(transaction);
     if (signature && signature.error){

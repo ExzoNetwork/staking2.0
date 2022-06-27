@@ -79,10 +79,6 @@ class StakingStore {
   loaderText = '';
   nullSubscriptions =
     Object.values(this.connection?._accountChangeSubscriptions || []).find(it => it.subscriptionId == null);
-  isWebSocketAvailable =
-    ('WebSocket' in window || 'MozWebSocket' in window) &&
-    ([false, undefined].indexOf(WebSocket.prototype?.blocked) > -1) &&
-    (typeof this.nullSubscriptions === 'undefined');
 
   constructor(config) {
 
@@ -132,7 +128,6 @@ class StakingStore {
       actionLabel: observable,
       refresh: observable,
       loaderText: observable,
-      isWebSocketAvailable: observable,
       chosenValidator: observable,
       stakeDataIsLoaded: observable,
       store: observable,
@@ -147,6 +142,13 @@ class StakingStore {
     }
   }
 
+  isWebSocketAvailable() {
+    return ('WebSocket' in window || 'MozWebSocket' in window) &&
+      ([false, undefined].indexOf(WebSocket.prototype?.blocked) > -1) &&
+      (typeof (Object.values(this.connection?._accountChangeSubscriptions || []).find(it => it.subscriptionId == null)) === 'undefined')
+      //&& this.connection._rpcWebSocketConnected === true;
+  }
+
   async reloadWithRetryAndCleanCache() {
     invalidateCache();
     await this.reloadWithRetry();
@@ -159,7 +161,7 @@ class StakingStore {
   }
 
   async updateVLXBalances() {
-    if (this.updateVLXBalances.subscriptionID)
+    if (this.updateVLXBalances[`subscriptionID_${this.publicKey58}`])
       //await this.connection.removeAccountChangeListener(this.updateVLXBalances.subscriptionID);
       return;
     const callback = (updatedAccount) => {
@@ -171,7 +173,7 @@ class StakingStore {
     try {
       const commitment = "confirmed";
       const subscriptionID = this.connection.onAccountChange(this.publicKey, callback, commitment);
-      this.updateVLXBalances.subscriptionID = subscriptionID;
+      this.updateVLXBalances[`subscriptionID_${this.publicKey58}`] = subscriptionID;
     } catch (err) {
       console.error("[updateVLXBalances] err", err);
     }
@@ -398,7 +400,11 @@ class StakingStore {
         }
         continue;
       }
-      validator.addStakingAccount(account);
+      validator.addStakingAccount(account,
+        {
+         requestActivation: true,
+         isWebSocketAvailable: this.isWebSocketAvailable()
+        });
     }
     const rent = await this.connection.getMinimumBalanceForRentExemption(200);
     this.endRefresh(
@@ -505,7 +511,11 @@ class StakingStore {
         }
         continue;
       }
-      validator.addStakingAccount(account);
+      validator.addStakingAccount(account,
+        {
+         requestActivation: true,
+         isWebSocketAvailable: this.isWebSocketAvailable()
+       });
     }
     const rent = await this.connection.getMinimumBalanceForRentExemption(200);
     this.endRefresh(
@@ -745,6 +755,7 @@ class StakingStore {
     const fromPubkey = this.publicKey;
     const addressesHs = Object.create(null);
     await when(() => !!this.accounts);
+    const validatorAccountsMap = this.chosenValidator.stakingAccountsKV;
     for (let i = 0; i < this.accounts.length; i++) {
       addressesHs[this.accounts[i].address] = true;
     }
@@ -757,7 +768,7 @@ class StakingStore {
         StakeProgram.programId
       );
       const toBase58 = stakePublilcKey.toBase58();
-      if (!addressesHs[toBase58] && !this.seedUsed[i]) {
+      if (!addressesHs[toBase58] && !this.seedUsed[i] && !validatorAccountsMap[toBase58]) {
         break;
       }
       i++;
@@ -913,9 +924,13 @@ class StakingStore {
       if (signature.error){
         return signature;
       }
-      if (this.isWebSocketAvailable) {
-        const commitment = 'confirmed';
-        await this.connection.confirmTransaction(signature, commitment);
+      if (this.isWebSocketAvailable()) {
+        try {
+          const commitment = 'confirmed';
+          await this.connection.confirmTransaction(signature, commitment);
+        } catch (error) {
+          console.error("confirmTransaction error", error);
+        }
       }
 
       if (this.chosenValidator){
@@ -930,7 +945,7 @@ class StakingStore {
         this.chosenValidator.addStakingAccount(newStakeAccount,
           {
             requestActivation: true,
-            isWebSocketAvailable: this.isWebSocketAvailable
+            isWebSocketAvailable: this.isWebSocketAvailable()
           }
         );
       }
@@ -1052,6 +1067,7 @@ class StakingStore {
     for (let i = 0; i < sortedAccounts.length; i++) {
       totalStake = totalStake.add(sortedAccounts[i].myStake);
     }
+    console.log("[request]", {totalStake: totalStake.toString()})
     if (totalStake.sub(new BN(10000000)).lt(amount)) {
       amount = totalStake;
     }
@@ -1096,15 +1112,28 @@ class StakingStore {
     if (this.txsProgress.filter(it => it.transaction).length > 1)
       return {error: true, code: WITHDRAW_TX_SIZE_MORE_THAN_EXPECTED_CODE};
 
+    const totalAmount = new BN('0');
+    validator.stakingAccounts.map(it => {
+      const {lamports} = it.account;
+      totalAmount.add(new BN(lamports))
+    });
+    const totalAmountStr = totalAmount.toString();
+    console.log("totalAmountStr", totalAmountStr);
+    console.log("sendAmount", sendAmount);
+
     const signature = await this.sendTransaction(transaction);
     if (signature && signature.error){
       return signature;
     }
 
     if (_splitStakePubkey) {
-      if (this.isWebSocketAvailable) {
-        const commitment = 'confirmed';
-        await this.connection.confirmTransaction(signature, commitment);
+      if (this.isWebSocketAvailable()) {
+        try{
+          const commitment = 'confirmed';
+          await this.connection.confirmTransaction(signature, commitment);
+        } catch (err) {
+          console.error('[requestWithdraw] confirmTransaction error', err);
+        }
       }
 
       if (this.chosenValidator) {
@@ -1120,12 +1149,12 @@ class StakingStore {
         this.chosenValidator.addStakingAccount(newStakeAccount,
           {
             requestActivation: true,
-            isWebSocketAvailable: this.isWebSocketAvailable
+            isWebSocketAvailable: this.isWebSocketAvailable()
           }
         );
       }
     }
-    if (!this.isWebSocketAvailable) {
+    if (!this.isWebSocketAvailable()) {
       await this.reloadWithRetryAndCleanCache();
       await this.chosenValidator.requestStakeAccountsActivation(true, false);
     }
@@ -1224,7 +1253,7 @@ class StakingStore {
       return res;
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    if (!this.isWebSocketAvailable) {
+    if (!this.isWebSocketAvailable()) {
       await this.chosenValidator.requestStakeAccountsActivation(true, false);
       await this.reloadWithRetryAndCleanCache();
     }

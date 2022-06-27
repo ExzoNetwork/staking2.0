@@ -313,6 +313,10 @@ class ValidatorModelBacked {
     const res = await stakingAccount.requestActivation();
   }
 
+  getStakingAccountByAddress(address) {
+    if (typeof address !== 'string') throw new Error('[getStakingAccountByAddress] address must be string type.')
+    return this.backendData.stakingAccounts.filter((it) => {return it.account.pubkey === address});
+  }
 
   async removeStakingAccount(stakingAccount) {
     if (!stakingAccount || !(stakingAccount instanceof StakingAccountModel)) {
@@ -333,10 +337,13 @@ class ValidatorModelBacked {
     if (!(stakingAccount instanceof StakingAccountModel)) {
       throw new Error('stakingAccount invalid');
     }
-    if (this.stakingAccountsKV[stakingAccount.address])
+    if (this.stakingAccountsKV[stakingAccount.address]) {
+      console.log('do not add staking account', stakingAccount)
       return;
+    }
     const _isWebSocketAvailable =
       (typeof config?.isWebSocketAvailable === 'undefined') ? true : config?.isWebSocketAvailable
+
     this.subscribeToStakeAccount(
       {
         stakingAccount: stakingAccount,
@@ -348,6 +355,7 @@ class ValidatorModelBacked {
       }
     );
 
+
     this.backendData.stakingAccounts.push(stakingAccount);
     this.stakingAccountsKV[stakingAccount.address] = true;
     // If ws connection is not available force request active/inactive stakes
@@ -357,28 +365,28 @@ class ValidatorModelBacked {
 
 
   subscribeToStakeAccount({ stakingAccount, publicKey, connection, onAccountChangeCallback, isWebSocketAvailable }) {
+    console.log('[subscribeToStakeAccount]')
     if (!stakingAccount || !(stakingAccount instanceof StakingAccountModel)) {
       throw new Error('stakingAccount invalid');
     }
     const { account } = stakingAccount;
-    if (!account) return;
+    if (!account) {
+      return console.log('[subscribeToStakeAccount] stop account subscribing: account prop is missed in stakingAccount model')
+    };
     const { pubkey } = account;
     if (account.subscriptionID || this.subscriptionIDs[`${pubkey}`]){
-      //console.log('ignore subscription for account', pubkey)
+      console.log('[subscribeToStakeAccount] ignore subscription for account', pubkey)
       return;
     }
     try {
       const commitment = 'confirmed';
       const callback = onAccountChangeCallback(stakingAccount);
-
       const subscriptionID = connection.onAccountChange(publicKey, callback, commitment);
-      console.log("subscriptionID", subscriptionID);
-      connection._rpcWebSocketConnected = true;
       this.subscriptionIDs[`${pubkey}`] = subscriptionID;
       account.subscriptionID = subscriptionID;
     } catch (err) {
       connection._rpcWebSocketConnected = false;
-      console.error("onAccountChange subscription failed. Request stake accounts activation manually");
+      console.error("onAccountChange subscription failed. Request stake accounts activation manually", err);
       const force = true;
       this.requestStakeAccountsActivation(force, true);
     }

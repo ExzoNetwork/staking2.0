@@ -337,8 +337,10 @@ class ValidatorModelBacked {
     if (!(stakingAccount instanceof StakingAccountModel)) {
       throw new Error('stakingAccount invalid');
     }
-    if (this.stakingAccountsKV[stakingAccount.address])
+    if (this.stakingAccountsKV[stakingAccount.address]) {
+      console.log('do not add staking account', stakingAccount)
       return;
+    }
     const _isWebSocketAvailable =
       (typeof config?.isWebSocketAvailable === 'undefined') ? true : config?.isWebSocketAvailable
 
@@ -367,18 +369,18 @@ class ValidatorModelBacked {
       throw new Error('stakingAccount invalid');
     }
     const { account } = stakingAccount;
-    if (!account) return;
+    if (!account) {
+      return console.log('[subscribeToStakeAccount] stop account subscribing: account prop is missed in stakingAccount model')
+    };
     const { pubkey } = account;
     if (account.subscriptionID || this.subscriptionIDs[`${pubkey}`]){
-      //console.log('ignore subscription for account', pubkey)
+      console.log('[subscribeToStakeAccount] ignore subscription for account', pubkey)
       return;
     }
     try {
       const commitment = 'confirmed';
       const callback = onAccountChangeCallback(stakingAccount);
       const subscriptionID = connection.onAccountChange(publicKey, callback, commitment);
-      console.log("subscriptionID", subscriptionID);
-      connection._rpcWebSocketConnected = true;
       this.subscriptionIDs[`${pubkey}`] = subscriptionID;
       account.subscriptionID = subscriptionID;
     } catch (err) {

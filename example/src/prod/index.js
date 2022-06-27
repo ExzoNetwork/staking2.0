@@ -488,7 +488,7 @@ const StakingPage = (props) => {
 
               <div style={{fontSize: 14, display: openSearch ? 'none' : 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -10, paddingInline: 10, backgroundColor: info.app.stakingBg || '#14183b'}} {...props} className="index-title-row-staked">
                 <div style={{display: openSearch && 'none'}}>
-                  {!stakingStore.isWebSocketAvailable && (
+                  {!stakingStore.isWebSocketAvailable() && (
                     <IconButton color='inherit' onClick={onPressReload} id='on-press-reload'>
                       <CachedIcon fontSize="small" sx={{ color: '#ffffff60' }}/>
                     </IconButton>
