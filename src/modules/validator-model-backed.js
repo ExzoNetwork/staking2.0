@@ -298,7 +298,7 @@ class ValidatorModelBacked {
       const voter = delegation.voter;
 
       const parsedAccount = parseStakeAccount({accountInfo: updatedAccount, newStakePubkey: account.pubkey});
-      console.log("update stake add with new data", parsedAccount);
+      //console.log("update stake add with new data", parsedAccount);
       const updates = {
         lamports: updatedAccount.lamports,
         stake: _stake,
