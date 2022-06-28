@@ -315,7 +315,7 @@ class ValidatorModelBacked {
 
   getStakingAccountByAddress(address) {
     if (typeof address !== 'string') throw new Error('[getStakingAccountByAddress] address must be string type.')
-    return this.backendData.stakingAccounts.filter((it) => {return it.account.pubkey === address});
+    return this.backendData.stakingAccounts.find((it) => {return it.account.pubkey === address});
   }
 
   async removeStakingAccount(stakingAccount) {
