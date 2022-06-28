@@ -298,7 +298,7 @@ class ValidatorModelBacked {
       const voter = delegation.voter;
 
       const parsedAccount = parseStakeAccount({accountInfo: updatedAccount, newStakePubkey: account.pubkey});
-      //console.log("update stake add with new data", parsedAccount);
+      console.log("update stake add with new data", parsedAccount);
       const updates = {
         lamports: updatedAccount.lamports,
         stake: _stake,
@@ -315,7 +315,7 @@ class ValidatorModelBacked {
 
   getStakingAccountByAddress(address) {
     if (typeof address !== 'string') throw new Error('[getStakingAccountByAddress] address must be string type.')
-    return this.backendData.stakingAccounts.filter((it) => {return it.account.pubkey === address});
+    return this.backendData.stakingAccounts.find((it) => {return it.account.pubkey === address});
   }
 
   async removeStakingAccount(stakingAccount) {

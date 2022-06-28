@@ -165,7 +165,7 @@ class StakingStore {
       //await this.connection.removeAccountChangeListener(this.updateVLXBalances.subscriptionID);
       return;
     const callback = (updatedAccount) => {
-      console.log("updateVLXBalances",updatedAccount)
+      //console.log("updateVLXBalances",updatedAccount)
       const lamportsStr = updatedAccount.lamportsStr;
       this.vlxNativeBalance = lamportsStr ? new BN(lamportsStr, 10) : new BN('0');
       this.getEvmBalance();
@@ -1067,7 +1067,6 @@ class StakingStore {
     for (let i = 0; i < sortedAccounts.length; i++) {
       totalStake = totalStake.add(sortedAccounts[i].myStake);
     }
-    console.log("[request]", {totalStake: totalStake.toString()})
     if (totalStake.sub(new BN(10000000)).lt(amount)) {
       amount = totalStake;
     }
@@ -1118,8 +1117,6 @@ class StakingStore {
       totalAmount.add(new BN(lamports))
     });
     const totalAmountStr = totalAmount.toString();
-    console.log("totalAmountStr", totalAmountStr);
-    console.log("sendAmount", sendAmount);
 
     const signature = await this.sendTransaction(transaction);
     if (signature && signature.error){
@@ -1145,7 +1142,7 @@ class StakingStore {
             validatorsBackend: this.validatorsBackend,
           }
         );
-        console.log("new splitted acc", newStakeAccount)
+        //console.log("new splitted acc", newStakeAccount)
         this.chosenValidator.addStakingAccount(newStakeAccount,
           {
             requestActivation: true,
@@ -1241,7 +1238,7 @@ class StakingStore {
         console.warn(e);
       }
     }
-    console.log(`Try to withdraw ${sendAmount} VLX`)
+    //console.log(`Try to withdraw ${sendAmount} VLX`)
     this.updateTx({transaction,sendAmount, state: ""}, arrIndex);
     arrIndex++;
 
