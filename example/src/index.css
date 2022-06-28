@@ -11,3 +11,17 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+.MuiAlert-message{
+  overflow-x: auto
+}
+.rnc__notification-item{
+
+}
+.rnc__notification-item.rnc__notification-item--danger{
+  background-color: rgba(220, 53, 69, 0.42) !important;
+}
+.rnc__notification-item.rnc__notification-item--success{
+  background-color: rgba(40, 167, 69, 0.42) !important;
+}
+

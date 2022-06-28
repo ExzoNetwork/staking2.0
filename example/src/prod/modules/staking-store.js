@@ -1,4 +1,4 @@
-import { decorate, observable, action, when } from 'mobx';
+import { decorate, observable, action, when, toJS, observe } from 'mobx';
 import BN from 'bn.js';
 import bs58 from 'bs58';
 import { ValidatorModel } from './validator-model.js';
@@ -7,6 +7,8 @@ import { StakingAccountModel } from './staking-account-model.js';
 import fetch from 'cross-fetch';
 import {Buffer} from 'buffer';
 import _ from 'lodash';
+import { findIndex } from 'prelude-ls';
+
 //const solanaWeb3 = require('./index.cjs.js');
 //import * as solanaWeb3 from './index.cjs.js';
 //import * as solanaWeb3 from '@velas/web3';
@@ -23,6 +25,7 @@ import * as ethereum from 'ethereumjs-tx';
 import Common from 'ethereumjs-common';
 // import Store from "../wallet/data-scheme.js";
 import { formatToFixed } from '../format-value';
+import { formNewStakeAccount } from './functions';
 
 const PRESERVE_BALANCE = new BN('1000000000', 10);
 const MAX_INSTRUCTIONS_PER_WITHDRAW = 18;
@@ -64,7 +67,6 @@ class StakingStore {
   rent = null;
   seedUsed = Object.create(null);
   connection = null;
-  openedValidatorAddress = null;
   evmAddress = null;
   epochInfo = null;
   network = null;
@@ -75,6 +77,8 @@ class StakingStore {
   isLoading = false;
   txsArr = new Array(20).fill({state:""});
   loaderText = '';
+  nullSubscriptions =
+    Object.values(this.connection?._accountChangeSubscriptions || []).find(it => it.subscriptionId == null);
 
   constructor(config) {
 
@@ -91,7 +95,6 @@ class StakingStore {
     } = config;
     this.refresh = config.refresh;
     this.secretKey = bs58.decode(nativePrivateKey);
-    //const publicKeyBuffer = {"data": [175, 102, 145, 237, 171, 197, 51, 43, 232, 19, 173, 90, 60, 193, 229, 148, 133, 170, 191, 102, 23, 245, 139, 32, 56, 241, 184, 208, 245, 20, 86, 221], "type": "Buffer"}
     this.publicKey58 = publicKey;
     this.publicKey = new PublicKey(publicKey);
     this.connection = new Connection(nativeApi, 'confirmed');
@@ -105,7 +108,8 @@ class StakingStore {
     this.isLoading = false;
     this.txsProgress = this.txsArr;
     this.actionLabel = null;
-//    this.setTxsProgress()
+    this.chosenValidator = null;
+    this.stakeDataIsLoaded = false;
     this.web3 = new Web3(new Web3.providers.HttpProvider(evmAPI));
     invalidateCache();
     decorate(this, {
@@ -116,7 +120,6 @@ class StakingStore {
       isRefreshing: observable,
       validatorDetailsLoading: observable,
       accounts: observable,
-      openedValidatorAddress: observable,
       epochInfo: observable,
       _currentSort: observable,
       getValidatorsError: observable,
@@ -125,10 +128,25 @@ class StakingStore {
       actionLabel: observable,
       refresh: observable,
       loaderText: observable,
+      chosenValidator: observable,
+      stakeDataIsLoaded: observable,
+      store: observable,
     });
+
+    const wsUrl = nativeApi.replace("https://", "ws://ssss");
     this.startRefresh = action(this.startRefresh);
     this.endRefresh = action(this.endRefresh);
     this.init();
+    if (window) {
+      window.staking2_0 = this;
+    }
+  }
+
+  isWebSocketAvailable() {
+    return ('WebSocket' in window || 'MozWebSocket' in window) &&
+      ([false, undefined].indexOf(WebSocket.prototype?.blocked) > -1) &&
+      (typeof (Object.values(this.connection?._accountChangeSubscriptions || []).find(it => it.subscriptionId == null)) === 'undefined')
+      //&& this.connection._rpcWebSocketConnected === true;
   }
 
   async reloadWithRetryAndCleanCache() {
@@ -139,6 +157,26 @@ class StakingStore {
   async init() {
     await tryFixCrypto();
     await this.reloadWithRetry();
+    await this.updateVLXBalances();
+  }
+
+  async updateVLXBalances() {
+    if (this.updateVLXBalances[`subscriptionID_${this.publicKey58}`])
+      //await this.connection.removeAccountChangeListener(this.updateVLXBalances.subscriptionID);
+      return;
+    const callback = (updatedAccount) => {
+      //console.log("updateVLXBalances",updatedAccount)
+      const lamportsStr = updatedAccount.lamportsStr;
+      this.vlxNativeBalance = lamportsStr ? new BN(lamportsStr, 10) : new BN('0');
+      this.getEvmBalance();
+    }
+    try {
+      const commitment = "confirmed";
+      const subscriptionID = this.connection.onAccountChange(this.publicKey, callback, commitment);
+      this.updateVLXBalances[`subscriptionID_${this.publicKey58}`] = subscriptionID;
+    } catch (err) {
+      console.error("[updateVLXBalances] err", err);
+    }
   }
 
   async reloadWithRetry() {
@@ -328,8 +366,10 @@ class StakingStore {
 
     this.loaderText = 'Setting your staking accounts';
     const stakingAccounts = (nativeAccountsFromBackendResult || []).map(
-      (account) =>
-        new StakingAccountModel(account, this.connection, this.network, this.validatorsBackend)
+      (account) => {
+        const stakeAcc = new StakingAccountModel(account, this.connection, this.network, this.validatorsBackend);
+        return stakeAcc;
+      }
     );
 
     let tmp = [];
@@ -338,7 +378,7 @@ class StakingStore {
     } else if(validatorsFromBackend?.validators) {
       tmp = validatorsFromBackend?.validators || [];
     }
-  
+
     const validators = (tmp).map(
       (validator) =>
         new ValidatorModelBacked(validator, this.connection, this.network)
@@ -360,7 +400,11 @@ class StakingStore {
         }
         continue;
       }
-      validator.addStakingAccount(account);
+      validator.addStakingAccount(account,
+        {
+         requestActivation: true,
+         isWebSocketAvailable: this.isWebSocketAvailable()
+        });
     }
     const rent = await this.connection.getMinimumBalanceForRentExemption(200);
     this.endRefresh(
@@ -371,6 +415,23 @@ class StakingStore {
       stakingAccounts,
       epochInfo
     );
+  }
+
+  async getEvmBalance () {
+    const balanceEvmRes = await fetch(this.evmAPI, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: `{"jsonrpc":"2.0","id":${Date.now()},"method":"eth_getBalance","params":["${
+        this.evmAddress
+      }","latest"]}`,
+    });
+    const balanceEvmJson = await balanceEvmRes.json();
+    this.vlxEvmBalance = balanceEvmJson ? new BN(balanceEvmJson.result.substr(2), 16).div(
+      new BN(1e9)
+    ) : new BN('0');
   }
 
   async reloadFromNodeRpc() {
@@ -413,13 +474,14 @@ class StakingStore {
       );
     });
     const stakingAccounts = (filteredAccounts || []).map(
-      (account) =>
-        new StakingAccountModel(
+      (account) => {
+        return new StakingAccountModel(
           transformNodeRpcGetParsedProgramAccountsToBackendFormat(account),
           this.connection,
           this.network,
           null
         )
+      }
     );
     const configPerValidator = await this.getConfigsMap();
     const validators = (current || [])
@@ -449,7 +511,11 @@ class StakingStore {
         }
         continue;
       }
-      validator.addStakingAccount(account);
+      validator.addStakingAccount(account,
+        {
+         requestActivation: true,
+         isWebSocketAvailable: this.isWebSocketAvailable()
+       });
     }
     const rent = await this.connection.getMinimumBalanceForRentExemption(200);
     this.endRefresh(
@@ -512,23 +578,26 @@ class StakingStore {
     }
     return this.validators.filter((validator) => validator.myStake);
   }
-  getValidatorDetails = () => {
-    const validatorAddress = this.openedValidatorAddress;
-    if (typeof validatorAddress !== 'string') {
-//      throw new Error('openedValidatorAddress need to be set');
-        return null;
-    }
-    if (!this.validators) return null;
-    const validator = this.validators.find(
+
+  getOpenedValidator = () => {
+    return this.chosenValidator;
+  }
+
+  setChosenValidator(validatorAddress) {
+    const validator = (this.validators || []).find(
       ({ address }) => address === validatorAddress
     );
-    if (!validator) {
-      return null;
-      //throw new Error('Validator not found');
-    }
+    if (!validator) throw new Error("Validator not found");
+    this.chosenValidator = validator;
+  }
+
+  getValidatorDetails = () => {
+
+    if (!this.chosenValidator) return null;
+    const validator = this.chosenValidator;
 
     return {
-      address: validatorAddress,
+      address: validator.address,
       identity: validator.identity,
       dominance: this.getDominance(validator),
       quality: this.getQuality(validator),
@@ -541,7 +610,7 @@ class StakingStore {
       stakeDataIsLoaded: (!validator.myStake) || validator.myStake.isZero() ||
         (validator.totalActiveStake !== null && validator.totalInactiveStake !== null),
       name: validator.name,
-      available_balance: this.getBalance(),
+      available_balance: this.getBalance() || new BN(0),
       myActiveStake:
         validator.totalActiveStake &&
         validator.totalInactiveStake &&
@@ -562,10 +631,56 @@ class StakingStore {
         validator.totalAvailableForWithdrawRequestStake,
     };
   }
-  getRewards = () => {
-    const validatorAddress = this.openedValidatorAddress;
+
+  getDetailsFromValidator = () => {
+    if (!this.chosenValidator) throw new Error('[getRewards] chosenValidator is not defined');
+    const validator = this.chosenValidator;
+    const validatorAddress = this.chosenValidator.address;
     if (typeof validatorAddress !== 'string') {
-      throw new Error('openedValidatorAddress need to be set');
+        return null;
+    }
+
+    return {
+      address: validatorAddress,
+      identity: validator.identity,
+      dominance: this.getDominance(validator),
+      quality: this.getQuality(validator),
+      annualPercentageRate: this.getAnnualRate(validator),
+      apr: validator.apr,
+      commission: validator.commission,
+      status: validator.status,
+      myStake: validator.myStake,
+      activeStake: validator.activeStake,
+      stakeDataIsLoaded: (!validator.myStake) || validator.myStake.isZero() ||
+        (validator.totalActiveStake !== null && validator.totalInactiveStake !== null),
+      name: validator.name,
+      available_balance: this.getBalance() || new BN(0),
+      myActiveStake:
+        validator.totalActiveStake &&
+        validator.totalInactiveStake &&
+        (!validator.totalActiveStake.isZero() ||
+          !validator.totalInactiveStake.isZero() ||
+          null) &&
+        validator.totalActiveStake
+          .mul(new BN(100))
+          .div(validator.totalActiveStake.add(validator.totalInactiveStake))
+          .toString(10),
+      totalWithdrawRequested: validator.totalWithdrawRequested,
+      availableWithdrawRequested: validator.availableWithdrawRequested,
+      totalActiveStake: validator.totalActiveStake,
+      totalActivatingStake: validator.totalActivatingStake,
+      totalDeactivatingStake: validator.totalDeactivatingStake,
+      totalInactiveStake: validator.totalInactiveStake,
+      totalAvailableForWithdrawRequestStake:
+        validator.totalAvailableForWithdrawRequestStake,
+    };
+  }
+
+  getRewards = () => {
+    if (!this.chosenValidator) throw new Error('[getRewards] chosenValidator is not defined');
+    const validatorAddress = this.chosenValidator.address;
+    if (typeof validatorAddress !== 'string') {
+      throw new Error('Validator address need to be set');
     }
     const validator = this.validators.find(
       ({ address }) => address === validatorAddress
@@ -580,7 +695,8 @@ class StakingStore {
   }
 
   loadMoreRewards = async () => {
-    const validatorAddress = this.openedValidatorAddress;
+    if (!this.chosenValidator) throw new Error('[getRewards] chosenValidator is not defined');
+    const validatorAddress = this.chosenValidator.address;
     if (typeof validatorAddress !== 'string' || !this.validators) {
       return;
     }
@@ -639,6 +755,7 @@ class StakingStore {
     const fromPubkey = this.publicKey;
     const addressesHs = Object.create(null);
     await when(() => !!this.accounts);
+    const validatorAccountsMap = this.chosenValidator.stakingAccountsKV;
     for (let i = 0; i < this.accounts.length; i++) {
       addressesHs[this.accounts[i].address] = true;
     }
@@ -651,7 +768,7 @@ class StakingStore {
         StakeProgram.programId
       );
       const toBase58 = stakePublilcKey.toBase58();
-      if (!addressesHs[toBase58] && !this.seedUsed[i]) {
+      if (!addressesHs[toBase58] && !this.seedUsed[i] && !validatorAccountsMap[toBase58]) {
         break;
       }
       i++;
@@ -675,11 +792,10 @@ class StakingStore {
     }
 
     const payAccount = new Account(this.secretKey);
-    let result = await this.connection.sendTransaction(transaction, [
+    let signature = await this.connection.sendTransaction(transaction, [
       payAccount,
     ]);
-
-    return result;
+    return signature;
   }
 
   waitTransactionMined(txHash, interval, resolve, reject) {
@@ -801,12 +917,39 @@ class StakingStore {
       })
     );
     try{
-      const result = await this.sendTransaction(transaction);
-      if (result.error){
-        return result;
+      const signature = await this.sendTransaction(transaction);
+      if (!signature) {
+        return {error: 'something went wrong'};
       }
-      await this.reloadWithRetryAndCleanCache();
-      return result;
+      if (signature.error){
+        return signature;
+      }
+      if (this.isWebSocketAvailable()) {
+        try {
+          const commitment = 'confirmed';
+          await this.connection.confirmTransaction(signature, commitment);
+        } catch (error) {
+          console.error("confirmTransaction error", error);
+        }
+      }
+
+      if (this.chosenValidator){
+        const newStakeAccount = await formNewStakeAccount(
+          {
+            newStakePubkey: stakePubkey,
+            connection: this.connection,
+            network: this.network,
+            validatorsBackend: this.validatorsBackend,
+          }
+        );
+        this.chosenValidator.addStakingAccount(newStakeAccount,
+          {
+            requestActivation: true,
+            isWebSocketAvailable: this.isWebSocketAvailable()
+          }
+        );
+      }
+      return signature;
     } catch (err) {
       return {error: err};
     }
@@ -865,8 +1008,7 @@ class StakingStore {
       basePubkey: authorizedPubkey,
     };
 
-    return StakeProgram.splitWithSeed(params);
-    // return await this.sendTransaction(transaction);
+    return { instruction: StakeProgram.splitWithSeed(params), splitStakePubkey };
   }
 
   async undelegateTransaction(stakePubkey) {
@@ -894,6 +1036,7 @@ class StakingStore {
     if (!this.validators) {
       throw new Error('Not loaded');
     }
+    let _splitStakePubkey = null;
     this.actionLabel = 'request_withdraw';
     let transaction = null;
     this.txsProgress = this.txsArr;
@@ -950,12 +1093,13 @@ class StakingStore {
         transaction.add(await this.undelegateTransaction(account.publicKey));
         amount = amount.sub(account.myStake);
       } else {
-        transaction.add(
-          await this.splitStakeAccountTransaction(
-            account,
-            account.myStake.sub(amount)
-          )
+        const splitInstruction = await this.splitStakeAccountTransaction(
+          account,
+          account.myStake.sub(amount)
         );
+        const { instruction, splitStakePubkey } = splitInstruction;
+        _splitStakePubkey = splitStakePubkey;
+        transaction.add(instruction);
         transaction.add(await this.undelegateTransaction(account.publicKey));
         break;
       }
@@ -967,13 +1111,51 @@ class StakingStore {
     if (this.txsProgress.filter(it => it.transaction).length > 1)
       return {error: true, code: WITHDRAW_TX_SIZE_MORE_THAN_EXPECTED_CODE};
 
-    const res = await this.sendTransaction(transaction);
-    if (res.error){
-      return res;
+    const totalAmount = new BN('0');
+    validator.stakingAccounts.map(it => {
+      const {lamports} = it.account;
+      totalAmount.add(new BN(lamports))
+    });
+    const totalAmountStr = totalAmount.toString();
+
+    const signature = await this.sendTransaction(transaction);
+    if (signature && signature.error){
+      return signature;
     }
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    await this.reloadWithRetryAndCleanCache();
-    return res;
+
+    if (_splitStakePubkey) {
+      if (this.isWebSocketAvailable()) {
+        try{
+          const commitment = 'confirmed';
+          await this.connection.confirmTransaction(signature, commitment);
+        } catch (err) {
+          console.error('[requestWithdraw] confirmTransaction error', err);
+        }
+      }
+
+      if (this.chosenValidator) {
+        const newStakeAccount = await formNewStakeAccount(
+          {
+            newStakePubkey: _splitStakePubkey,
+            connection: this.connection,
+            network: this.network,
+            validatorsBackend: this.validatorsBackend,
+          }
+        );
+        //console.log("new splitted acc", newStakeAccount)
+        this.chosenValidator.addStakingAccount(newStakeAccount,
+          {
+            requestActivation: true,
+            isWebSocketAvailable: this.isWebSocketAvailable()
+          }
+        );
+      }
+    }
+    if (!this.isWebSocketAvailable()) {
+      await this.reloadWithRetryAndCleanCache();
+      await this.chosenValidator.requestStakeAccountsActivation(true, false);
+    }
+    return signature;
   }
 
   getTransactionByteSize(transaction) {
@@ -984,6 +1166,7 @@ class StakingStore {
     return clone.serializeMessage().length + 65;
   }
 
+  //Withdraw
   async withdrawRequested(address) {
     let transaction = null;
     let sendAmount = new BN('0');
@@ -997,19 +1180,24 @@ class StakingStore {
 
     await when(() => !!this.accounts);
     var filteredAccounts = [];
-    for (let i = 0; i < this.accounts.length; i++) {
-      var account = this.accounts[i];
+    const validatorAccounts = this.chosenValidator.stakingAccounts;
+    for (let i = 0; i < validatorAccounts.length; i++) {
+      var account = validatorAccounts[i];
       var unixTimestamp = account.unixTimestamp || account.account.lockupUnixTimestamp;
 
       if (account.validatorAddress !== address) continue;
       if (unixTimestamp > Date.now() / 1000) continue;
-      const { inactive, state } = await this.connection.getStakeActivation(
-        new PublicKey(account.publicKey)
-      );
-      if (!inactive || (state !== 'inactive' && state !== 'deactivating')) {
-        continue;
+      try {
+        const { inactive, state } = await this.connection.getStakeActivation(
+          new PublicKey(account.publicKey)
+        );
+        if (!inactive || (state !== 'inactive' && state !== 'deactivating')) {
+          continue;
+        }
+        filteredAccounts.push(account);
+      } catch (err) {
+        console.log("[withdrawRequested] getStakeActivation err:", err)
       }
-      filteredAccounts.push(account);
     }
 
     const txsCount = Math.ceil(filteredAccounts.length / MAX_INSTRUCTIONS_PER_WITHDRAW);
@@ -1050,6 +1238,7 @@ class StakingStore {
         console.warn(e);
       }
     }
+    //console.log(`Try to withdraw ${sendAmount} VLX`)
     this.updateTx({transaction,sendAmount, state: ""}, arrIndex);
     arrIndex++;
 
@@ -1061,7 +1250,10 @@ class StakingStore {
       return res;
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    await this.reloadWithRetryAndCleanCache();
+    if (!this.isWebSocketAvailable()) {
+      await this.chosenValidator.requestStakeAccountsActivation(true, false);
+      await this.reloadWithRetryAndCleanCache();
+    }
     return res;
   }
 
@@ -1082,7 +1274,6 @@ class StakingStore {
       if(info.meta && info.meta.status && (info.meta.status.Ok !== undefined)) {
         return cb(null, info);
       }
-
     };
   };
 

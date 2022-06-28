@@ -100,13 +100,10 @@ const Stake = (props) => {
       const ADDRESS = details.address;
       const result = await stakingStore.stake(ADDRESS, amount);
       console.log({result});
-      if (result.error) {
+      if (result && result.error) {
         setStakingInProcess(false);
         const errMsg = ErrorParser.parse(result.error);
         setStakingError(errMsg);
-        setTimeout(()=>{
-          setStakingError(null);
-        },3000)
         return;
       }
       goToStakingEnterance();
@@ -117,7 +114,7 @@ const Stake = (props) => {
     }
     setStakingInProcess(false);
     setValues({amount: ''})
-    await stakingStore.reloadWithRetryAndCleanCache();
+    //stakingStore.chosenValidator.requestStakeAccountsActivation(true);
   };
 
   return (

@@ -128,7 +128,8 @@ const TransactionsProgress = (props) => {
                                 stakingStore.txsProgress = new Array(20).fill({state:""});
                                 props.goToSuccessRequestWithdrawStep();
                               }
-                              await stakingStore.reloadWithRetryAndCleanCache();
+                              //await stakingStore.reloadWithRetryAndCleanCache();
+                              stakingStore.chosenValidator.requestStakeAccountsActivation(true);
                             }, 1)
 
                         }

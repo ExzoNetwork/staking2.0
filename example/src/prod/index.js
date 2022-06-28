@@ -12,6 +12,7 @@ import Alert from '@mui/material/Alert';
 import CachedIcon from '@mui/icons-material/Cached';
 import InputComponent from './input'
 import Header from './header';
+import DetailsValidator from './screen/Details';
 import Enterance from './enterance';
 import { Observer } from 'mobx-react';
 import { formatStakeAmount, amountToBN, formatAmount, wrapNumber, formatToFixed } from './format-value';
@@ -111,10 +112,11 @@ const StakingPage = (props) => {
     setShowExitWithdraw(false);
     setShowSuccessWithdraw(false);
     setShowSuccessWithdrawFinal(false);
-    stakingStore.openedValidatorAddress = null;
+    stakingStore.chosenValidator = null;
     stakingStore.refresh = false;
   }, [stakingStore.refresh])
 
+  const [ _validator, setValidator ] = React.useState(null);
   const [ withdrawError, setWithdrawError ] = React.useState(null);
   const [ withdrawInProgress, setWithdrawInProgress ] = React.useState(false);
   const [ requestWithdrawInProgress, setRequestWithdrawInProgress ] = React.useState(false);
@@ -122,10 +124,11 @@ const StakingPage = (props) => {
 
   const goToDetails = (address, name, apr, status, nodePubKey, activeStake) => () => {
     setShowStakePage({ ...showStakePage, show: true, address: address, name: name, apr: apr, status: status, nodePubKey: nodePubKey, activeStake: activeStake });
+    stakingStore.setChosenValidator(address);
     setShowDetails(true);
     setShowExitWithdraw(false);
     setShowRequestWithdraw(false);
-    stakingStore.openedValidatorAddress = address;
+
   };
   const goToDetailsFromSuccessWithdraw = () => {
     setShowSuccessWithdraw(false);
@@ -173,16 +176,16 @@ const StakingPage = (props) => {
     const [windowDimensions, setWindowDimensions] = useState(
       getWindowDimensions()
     );
-  
+
     useEffect(() => {
       function handleResize() {
         setWindowDimensions(getWindowDimensions());
       }
-  
+
       window.addEventListener("resize", handleResize);
       return () => window.removeEventListener("resize", handleResize);
     }, []);
-  
+
     return windowDimensions;
   }
   const { height } = useWindowDimensions();
@@ -426,7 +429,7 @@ const StakingPage = (props) => {
           ) {
             return <Loading text={stakingStore.loaderText} />;
           }
-          
+
         const sections = [
           {
             title: `${lang.itemStakedTitle || 'Staked Validators'} (${((filterStake || []).length)})`,
@@ -485,7 +488,11 @@ const StakingPage = (props) => {
 
               <div style={{fontSize: 14, display: openSearch ? 'none' : 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -10, paddingInline: 10, backgroundColor: info.app.stakingBg || '#14183b'}} {...props} className="index-title-row-staked">
                 <div style={{display: openSearch && 'none'}}>
-                  <IconButton color='inherit' onClick={onPressReload} id='on-press-reload'><CachedIcon fontSize="small" sx={{ color: '#ffffff60' }}/></IconButton>
+                  {!stakingStore.isWebSocketAvailable() && (
+                    <IconButton color='inherit' onClick={onPressReload} id='on-press-reload'>
+                      <CachedIcon fontSize="small" sx={{ color: '#ffffff60' }}/>
+                    </IconButton>
+                  )}
                 </div>
                 <div style={{display: openSearch && 'none', marginLeft: 25}}>
 
@@ -549,209 +556,12 @@ const StakingPage = (props) => {
   const [showDetails, setShowDetails] = React.useState(false);
   const backDetailsPage = (address, name, apr, status, nodePubKey, activeStake) => {
     setShowDetails(false);
-    stakingStore.openedValidatorAddress = null;
+    stakingStore.chosenValidator = null;
     setShowStakePage({ ...showStakePage, show: false, address: address, name: name, apr: apr, status: status, nodePubKey: nodePubKey, activeStake: activeStake  });
   };
   const [showStakeMore, setShowStakeMore] = React.useState(false);
 
 
-
-  const DetailsValidator = (props) => {
-
-    const { details } = props;
-    const { address, activeStake, apr, name, nodePubKey, show, status } = details;
-    const [ copy, setCopy ] = React.useState(false);
-    if (!showDetails || !stakingStore.openedValidatorAddress) return null;
-
-    const withdrawAvailable = () => {
-      setShowDetails(false);
-      alert('some spinner'); //add spinner
-      setShowSuccessWithdraw(true);
-    }
-
-    const copyAddress = () => {
-      navigator.clipboard.writeText(address)
-      setCopy(true)
-    }
-    const onClickExplorer = () => {
-      window.open(`https://native.velas.com/address/${showStakePage.address}`);
-    }
-
-    setTimeout(function(){
-      var message = document.getElementById('message');
-      if (message) {
-        document.getElementById('message').style.display = 'none';
-        setCopy(false)
-      }
-    }, 2000);
-
-
-
-    if (!stakingStore.openedValidatorAddress || !details) {
-      showStakePage.show = false;
-      return null;
-    }
-
-    const onPressReload2 = async () => {
-      stakingStore.getValidatorsError = null;
-      await stakingStore.reloadWithRetryAndCleanCache();
-    }
-
-    return (
-      <Observer>
-        {() => {
-
-          const Loading = () => {
-            return (
-              <Box sx={styleSpinner}>
-              <CircularProgress color='inherit'/>
-            </Box>
-            )
-          }
-
-          if (stakingStore.isRefreshing || stakingStore.isLoading){
-            return (
-              <div style={{ flex: 1, alignItems: 'center' }}>
-                <Loading/>
-              </div>
-            );
-          }
-
-          const chosenValidator = stakingStore.getValidatorDetails();
-          if (!chosenValidator){
-            return (
-              <>
-                <div className="staking index-container-details" style={widthContainer}>
-                  <Alert
-                    action={
-                      <IconButton color='inherit' onClick={onPressReload2} id='on-press-reload2'><AutorenewIcon/></IconButton>
-                    }
-                    severity="error"
-                    id="error" style={styleAlert}>
-                      Oops. An error occurred. Please try again.
-                  </Alert>
-                </div>
-              </>
-            )
-          }
-
-          const TOTAL_STAKE =
-              chosenValidator.totalAvailableForWithdrawRequestStake &&
-              formatAmount(chosenValidator.totalAvailableForWithdrawRequestStake);
-          const ADDRESS = chosenValidator.address;
-
-          const onPressWithdraw = async () => {
-            if (!chosenValidator || !chosenValidator.availableWithdrawRequested) return;
-            setWithdrawInProgress(true);
-            try {
-              const result = await stakingStore.withdrawRequested(address);
-              if (result.error) {
-                setWithdrawInProgress(false);
-                if (result.code && result.code === WITHDRAW_TX_SIZE_MORE_THAN_EXPECTED_CODE) {
-                  setShowSuccessWithdrawFinal(true);
-                  return setWithdrawInProgress(false);
-                }
-                const errMessage = ErrorParser.parse(result.error);
-                return setWithdrawError(errMessage);
-              }
-              const result1 = await stakingStore.reloadWithRetryAndCleanCache();
-            } catch (err) {
-              setWithdrawInProgress(false);
-              const msg = ErrorParser.parse(err);
-              setWithdrawError(msg)
-              return;
-            }
-            setShowDetails(false);
-            setShowSuccessWithdraw(true);
-            setWithdrawInProgress(false);
-          }
-          const onPressReload = async () => {
-            await stakingStore.reloadWithRetryAndCleanCache();
-          }
-
-          const goToStake = () => {
-            setShowDetails(false);
-            setShowStakeMore(true);
-          };
-
-          const address = chosenValidator ? chosenValidator.address : '...';
-          const myStake = chosenValidator ? chosenValidator.myStake : new BN(0);
-          const activeStake = chosenValidator ? chosenValidator.activeStake : new BN(0);
-          const name = chosenValidator ? chosenValidator.name : '...';
-          const commission = chosenValidator ? chosenValidator.commission : '...';
-          const dominance = chosenValidator ? chosenValidator.dominance : new BN(0);
-          const apr = chosenValidator ? formatToFixed((chosenValidator.apr || 0) * 100) : 0;
-          const myActiveStake = chosenValidator && chosenValidator.myActiveStake ? chosenValidator.myActiveStake : '0';
-
-          return (
-            <>
-              <div className="staking index-container-details" style={widthContainer}>
-                <Loader
-                  show={withdrawInProgress}
-                  text={lang.progressWithdraw || 'Withdrawing in process...'}
-                  info={info}
-                />
-
-                {withdrawError &&
-                  <Alert
-                    onClose={() => {setWithdrawError(null)}}
-                    severity="error"
-                    id="error"
-                    style={styleAlert}>
-                      { withdrawError }
-                  </Alert>}
-                {copy && <Alert severity="success" id="message" style={styleAlert}>{lang.copied || 'Copied'} { address }</Alert>}
-                <Header onClickBack={backDetailsPage} onClickReload={onPressReload} onClickExplorer={onClickExplorer}/>
-                <div style={{display: 'flex', flexDirection: "column", alignItems: "center", marginTop: 5}} className="index-details-avatar-badge">
-                  <Jdenticon size="55" value={ address } />
-                  <Badge status={status} lang={lang} top={10} bottom={0}/>
-                </div>
-                  { myStake && !myStake.isZero() ?
-                    <InfoBlock
-                      lang={lang}
-                      info={info}
-                      address={address}
-                      copyAddress={copyAddress}
-                      name={name}
-                      value2={wrapNumber(myActiveStake) + " %"}
-                      value1={formatStakeAmount(myStake) + " VLX"}
-                      titleInfo={lang.info4 || 'Only 25% of active stake can be activated per epoch.'}
-                      subtitle2={lang.myActiveStake || 'My active stake'}
-                      subtitle1={lang.myStake1 || 'My stake' }
-                      link
-                      />
-                    :
-                    <InfoBlock
-                      lang={lang}
-                      info={info}
-                      address={address}
-                      copyAddress={copyAddress}
-                      name={name}
-                      value1={apr + ' %'}
-                      value2={formatStakeAmount(activeStake) + ' VLX'}
-                      subtitle1={lang.annual || 'ANNUAL PERCENTAGE RATE'}
-                      subtitle2={lang.totalStake1 || "Total Stake"}
-                      tooltip1={lang.info3 || 'APR is calculated based on the results of the previous epoch'}
-                      />
-                  }
-
-                  <Tabs
-                    stakingStore={stakingStore}
-                    validatorDetails={chosenValidator}
-                    onClickStake={goToStake}
-                    onClickStakeMore={goToStake}
-                    onClickRequest={onClickRequest}
-                    onClickWithdrawal={onPressWithdraw}
-                    lang={lang}
-                    info={info}
-                  />
-              </div>
-            </>
-          );
-        }}
-      </Observer>
-    );
-  };
 
   //Request Withdraw End
   const RequestWithdraw = (props) => {
@@ -786,7 +596,7 @@ const StakingPage = (props) => {
             return setRequestWithdrawInProgress(false);
           }
 
-          const result1 = await stakingStore.reloadWithRetryAndCleanCache();
+          //const result1 = await stakingStore.reloadWithRetryAndCleanCache();
 
           const errMessage = ErrorParser.parse(result.error);
           return setWithdrawError(errMessage);
@@ -839,7 +649,7 @@ const StakingPage = (props) => {
     const withdrawDisabled = !values.amountWithdraw || (amountToBN(values.amountWithdraw+"").gt(TOTAL_STAKE)) || values.amountWithdraw == 0
 
     const onClickMax = (text) => {
-      setValues({ ...values, amountWithdraw: formatAmount(TOTAL_STAKE)});
+      setValues({ ...values, amountWithdraw: formatAmount(TOTAL_STAKE, {decimals: true})});
     }
     return (
       <>
@@ -861,13 +671,15 @@ const StakingPage = (props) => {
                   { withdrawError }
               </Alert>}
             <Header onClickBack={backToDetailsFrowWithdraw}/>
-            <InputComponent lang={lang}
+            <InputComponent
+              lang={lang}
               value={values.amountWithdraw}
               onChange={(text) => handleChange(text)}
               maxValue={TOTAL_STAKE}
               maxValueText={lang.yourTotalStake || 'Your total stake'}
               onClickMax={onClickMax}
               info={info}
+              maxFractionLength={10}
             />
           {(amountToBN(values.amountWithdraw+"").gt(TOTAL_STAKE)) &&
             <Notice mt={20} text={lang.noticeTrying || "You are trying to withdraw more funds than you have."}/>
@@ -904,10 +716,28 @@ const StakingPage = (props) => {
      {loading ? <Loading/> :
         <Box sx={{...style, backgroundColor: info.app.stakingBg || "#151839"}} className={heightChange ? !showStakePage.show ? "index-style-box-size" : "style-container-size" : !showStakePage.show ? "index-style-box" : "style-container"}>
           <StakePage />
-          { stakingStore.openedValidatorAddress && showDetails &&
-            <DetailsValidator details={showStakePage}/>
+          { stakingStore.chosenValidator && showDetails &&
+            <DetailsValidator
+              lang={lang}
+              info={info}
+              stakingStore={stakingStore}
+              details={showStakePage}
+              setShowDetails={setShowDetails}
+              showDetails={showDetails}
+              withdrawInProgress={withdrawInProgress}
+              setWithdrawInProgress={setWithdrawInProgress}
+              setValidator={setValidator}
+              setShowSuccessWithdraw={setShowSuccessWithdraw}
+              showStakePage={showStakePage}
+              setShowSuccessWithdrawFinal={setShowSuccessWithdrawFinal}
+              onClickRequest={onClickRequest}
+              withdrawError={withdrawError}
+              setWithdrawError={setWithdrawError}
+              backDetailsPage={backDetailsPage}
+              setShowStakeMore={setShowStakeMore}
+            />
           }
-          { stakingStore.openedValidatorAddress && (
+          { stakingStore.chosenValidator && (
             <>
               {showRequestWithdraw &&
                 <RequestWithdraw
@@ -930,7 +760,7 @@ const StakingPage = (props) => {
               <ButtonBlock lang={lang} text={lang.ok || "Ok"} onClickNext={goToDetailsFromSuccessWithdraw}/>
             </div>
           )}
-          {stakingStore.openedValidatorAddress && showExitWithdraw && (
+          {stakingStore.chosenValidator && showExitWithdraw && (
             <div className="staking index-width-container" style={widthContainer}>
               <Header/>
               <Enterance lang={lang} exitValidatorImg title={lang.exitValidatorTitle || 'Withdrawal request has been submitted successfully'} subtitle={lang.exitValidatorSubTitle || 'It will start cooling down from the next epoch. Please navigate the withdrawals tab to monitor the progress.'}/>

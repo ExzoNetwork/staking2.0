@@ -15,7 +15,6 @@ export default class InputAmount extends Component{
   inputRef = React.createRef();
 
   getNormalizedValue(value) {
-    console.log("value", value);
     return value.split(',').join('').split('.', 2).join('.');
   }
 

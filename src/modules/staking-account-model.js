@@ -9,14 +9,13 @@ const solanaWeb3 = require('@velas/web3');
 
 class StakingAccountModel {
   account = null;
-  myStake = null;
   network = null;
   validatorsBackend = null;
   isActivated = null;
   connection = null;
   rewards = null;
   rewardsStatus = 'NotLoaded';
-  isActivationRequested = false;
+  _isActivationRequested = false;
   _activeStake = null;
   _inactiveStake = null;
   _state = null;
@@ -33,22 +32,32 @@ class StakingAccountModel {
     return this.account.voter;
   }
 
+  get myStake() {
+    return new BN(this.account.lamports + '', 10);
+  }
+
+  set myStake(amount) {
+    this.account.lamports = amount;
+  }
+
   get activeStake() {
-    if (!this._activeStake)
-      this.requestActivation();
     return this._activeStake;
   }
 
+  set activeStake(amount) {
+    this._activeStake =  new BN(amount);
+  }
+
   get inactiveStake() {
-    if (!this._inactiveStake)
-      this.requestActivation();
     return this._inactiveStake;
   }
 
   get state() {
-    if (!this._state)
-      this.requestActivation();
     return this._state;
+  }
+
+  set state(newState) {
+    this._state = newState;
   }
 
   get isRewardsLoading() {
@@ -67,56 +76,62 @@ class StakingAccountModel {
   }
 
   get activeStakeIsLoading() {
-    return this.isActivationRequested;
+    return this._isActivationRequested;
+  }
+
+  set isActivationRequested(isRequested) {
+    this._isActivationRequested = isRequested;
   }
 
   async requestActivation() {
 
-      if (this.isActivationRequested) {
-        return;
-      }
-      //console.log("[requestActivation] start");
-      const start = Date.now();
-      this.isActivationRequested = true;
+    if (this._isActivationRequested) {
+      return;
+    }
+    const start = Date.now();
+    this._isActivationRequested = true;
 
-      const activationRes = await cachedCallWithRetries(
-        this.network,
-        [
-          'getStakeActivation',
-          this.connection,
-          new solanaWeb3.PublicKey(this.account.pubkey),
-        ],
-        async () => {
-          try {
-            return await this.connection.getStakeActivation(
-              new solanaWeb3.PublicKey(this.account.pubkey)
-            );
-          } catch (e) {
-            if (
-              !e.message ||
-              !e.message.includes('failed to get Stake Activation')
-            ) {
-              // this is quite unsafe to throw errors in getters
-              //throw e;
-            }
-            console.warn(e);
-            return null;
+    const activationRes = await cachedCallWithRetries(
+      this.network,
+      [
+        'getStakeActivation',
+        this.connection,
+        new solanaWeb3.PublicKey(this.account.pubkey),
+      ],
+      async () => {
+        try {
+          return await this.connection.getStakeActivation(
+            new solanaWeb3.PublicKey(this.account.pubkey)
+          );
+        } catch (e) {
+          if (
+            !e.message ||
+            !e.message.includes('failed to get Stake Activation')
+          ) {
+            // this is quite unsafe to throw errors in getters
+            //throw e;
           }
+          console.warn(e);
+          return {error: e};
         }
-      );
-      if (!activationRes) {
-        console.warn('Invalid activation response');
-        this._activeStake = new BN(0);
-        this._inactiveStake = new BN(0);
-        this._state = 'inactive';
-        return;
       }
-      const { active, inactive, state } = activationRes;
-      this._activeStake = new BN(active + '', 10);
-      this._inactiveStake = new BN(inactive + '', 10);
-      this._state = state;
-      const end = Date.now();
-      //console.log("[requestActivation] end", (end - start)/1000 , ' seconds');
+    );
+    if (activationRes && activationRes.error) {
+      return {...activationRes, address: this.account.pubkey.toString()};
+    }
+    if (!activationRes) {
+      console.warn('Invalid activation response');
+      this._activeStake = new BN(0);
+      this._inactiveStake = new BN(0);
+      this._state = 'inactive';
+      return;
+    }
+    const { active, inactive, state } = activationRes;
+    this._activeStake = new BN(active + '', 10);
+    this._inactiveStake = new BN(inactive + '', 10);
+    this._state = state;
+    const end = Date.now();
+    return null;
   }
 
   async loadMoreRewardsFromNodeRpc() {
@@ -232,7 +247,6 @@ class StakingAccountModel {
     } else {
       this.isActivated = false;
     }
-    this.myStake = new BN(lamports + '', 10);
 
     decorate(this, {
       rewardsStatus: observable,
@@ -243,22 +257,6 @@ class StakingAccountModel {
       activeStakeIsLoading: observable,
     });
   }
-  // fetchEpochRewards = (address, activationEpoch, cb)->
-  //     return cb null, [] if (not store.staking.chosenAccount.validator? or store.staking.chosenAccount.validator.toString!.length is 0)
-  //     err, epochSchedule <- as-callback(web3t.velas.NativeStaking.getEpochSchedule!)
-  //     console.error err if err?
-  //     {firstNormalEpoch, firstNormalSlot, leaderScheduleSlotOffset, slotsPerEpoch, warmup} = epochSchedule
-  //     err, slot <- as-callback(web3t.velas.NativeStaking.getSlot!)
-  //     console.error err if err?
-  //     err, firstAvailableBlock <- as-callback(web3t.velas.NativeStaking.getFirstAvailableBlock!)
-  //     console.error err if err?
-  //     err, epochInfo <- as-callback web3t.velas.NativeStaking.getCurrentEpochInfo()
-  //     console.error err if err?
-  //     return cb null if err?
-  //     { epoch } = epochInfo
-  //     # make loop here!
-  //     err, rewards <- query-rewards-loop(address, activationEpoch, firstNormalSlot, slotsPerEpoch, firstAvailableBlock, firstNormalEpoch, epoch)
-  //     cb null, rewards
 
   async getEpochSchedule() {
     return await cachedCallWithRetries(
