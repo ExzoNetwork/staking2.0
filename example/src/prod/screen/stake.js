@@ -27,13 +27,19 @@ const Stake = (props) => {
     amount: '',
   });
 
+  const IS_AMOUNT_GREATER_THAN_BALANCE_MINUS_ONE = amountToBN(values.amount).gt(
+    available_balance.sub(new BN(1e9))
+  );
+  const IS_SEND_STAKE_DISABLED =
+    !values.amount ||
+    (parseFloat(values.amount) && IS_AMOUNT_GREATER_THAN_BALANCE_MINUS_ONE) ||
+    +values.amount === 0 ||
+    values.amount === '.';
+
   const [showStakeActions, setShowStakeActions] = React.useState(false);
   const [showStakingEnterance, setShowStakingEnterance] = React.useState(false);
   const [stakingInProcess, setStakingInProcess] = React.useState(false);
   const [stakingError, setStakingError] = React.useState(null);
-
-  const nextDisabled = !values.amount ||
-    (amountToBN(values.amount+"").gte(available_balance.sub(new BN(1e9)))) || values.amount == 0
 
   const backToStakeMore = () => {
     setShowStakeActions(false);
@@ -75,13 +81,7 @@ const Stake = (props) => {
 
 
   const goToActions = () => {
-    if (
-      validatorDetails && (
-      !values.amount ||
-      (parseFloat(values.amount) &&
-        amountToBN(values.amount).gte(available_balance.sub(new BN(1e9)))))
-    )
-      return null;
+    if (IS_SEND_STAKE_DISABLED) return null;
     setShowStakeMore(false);
     setShowStakeActions(true)
   };
@@ -139,10 +139,11 @@ const Stake = (props) => {
             <Notice mt={20} text={lang.dontStake || "Don't stake all coins, leave some (~1 VLX) to pay transaction fees in the future and be able to initiate stake withdrawals."}/>
           }
 
-        <ButtonBlock lang={lang}
+        <ButtonBlock
+          lang={lang}
           text={lang.continue || "Next"}
           onClickNext={goToActions}
-          nextDisabled={nextDisabled}
+          nextDisabled={IS_SEND_STAKE_DISABLED}
         />
       </div>
     )}
