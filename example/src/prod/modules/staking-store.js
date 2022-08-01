@@ -1,13 +1,15 @@
 import { decorate, observable, action, when, toJS, observe } from 'mobx';
 import BN from 'bn.js';
 import bs58 from 'bs58';
-import { ValidatorModel } from './validator-model.js';
-import { ValidatorModelBacked } from './validator-model-backed.js';
-import { StakingAccountModel } from './staking-account-model.js';
 import fetch from 'cross-fetch';
 import {Buffer} from 'buffer';
 import _ from 'lodash';
 import { findIndex } from 'prelude-ls';
+import { amountToBN } from '../format-value';
+import { ValidatorModel } from './validator-model.js';
+import { ValidatorModelBacked } from './validator-model-backed.js';
+import { StakingAccountModel } from './staking-account-model.js';
+
 
 //const solanaWeb3 = require('./index.cjs.js');
 //import * as solanaWeb3 from './index.cjs.js';
@@ -30,6 +32,7 @@ import { formNewStakeAccount } from './functions';
 const PRESERVE_BALANCE = new BN('1000000000', 10);
 const MAX_INSTRUCTIONS_PER_WITHDRAW = 18;
 const WITHDRAW_TX_SIZE_MORE_THAN_EXPECTED_CODE = 102;
+const PRESERVED_FOR_COMMISSION_FROM_EVM_TO_NATIVE = amountToBN('0.5');
 
 // const  = mobx;
 async function tryFixCrypto() {
@@ -978,6 +981,11 @@ class StakingStore {
         .add(this.vlxEvmBalance)
         .lte(amount.add(PRESERVE_BALANCE))
     ) {
+      if (this.vlxEvmBalance.eq(amount.add(PRESERVE_BALANCE))) {
+        return this.vlxEvmBalance.sub(
+          PRESERVED_FOR_COMMISSION_FROM_EVM_TO_NATIVE
+        );
+      }
       return this.vlxEvmBalance;
     }
 

@@ -1,7 +1,13 @@
 import React from 'react';
 
 const ButtonBlock = (props) => {
-  const {stakeMoreDisabled, stakeDisabled, nextDisabled, withdrawDisabled, lang} = props;
+  const {
+    stakeMoreDisabled,
+    stakeDisabled,
+    nextDisabled,
+    withdrawDisabled,
+    lang
+  } = props;
   const styleBtnGreen = {
       background: '#0BFFB7',
       padding: 12,
