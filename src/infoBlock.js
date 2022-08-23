@@ -19,8 +19,8 @@ const addressStyle = {
 };
 const row = {
   marginTop: 10,
-//   marginInline : 20,
-display: 'flex',
+  //   marginInline : 20,
+  display: 'flex',
   flexDirection: 'row',
   justifyContent: 'center',
   alignItems: 'center',
@@ -31,7 +31,6 @@ display: 'flex',
   borderBottomWidth: 0.5,
   borderBottomColor: BORDER_COLOR,
   borderBottomStyle: 'solid',
-
 };
 const column = {
   flex: 0.5,
@@ -39,7 +38,7 @@ const column = {
   justifyContent: 'center',
   alignItems: 'center',
   display: 'flex',
-  flexDirection: "column",
+  flexDirection: 'column',
   marginBlock: 12,
   position: 'relative',
 };
@@ -52,7 +51,7 @@ const column2 = {
   borderLeftColor: BORDER_COLOR,
   borderLeftStyle: 'solid',
   display: 'flex',
-  flexDirection: "column",
+  flexDirection: 'column',
   marginBlock: 12,
   position: 'relative',
 };
@@ -68,23 +67,43 @@ const subtitle = {
   marginTop: 10,
 };
 
-const link_active_stake = 'https://support.velas.com/hc/en-150/articles/360021044820-Delegation-Warmup-and-Cooldown';
+const link_active_stake =
+  'https://support.velas.com/hc/en-150/articles/360021044820-Delegation-Warmup-and-Cooldown';
 const Info = (props) => {
   const {lang} = props;
   return (
     <Tooltip
-    enterTouchDelay={0}
-    title={<div>{props.titleInfo} {props.link && <a href={link_active_stake} target="_blank" id='link' style={{color: '#0BFFB7', cursor: 'pointer', textDecoration: 'underline',}}>
-        {lang.read || "Read More"}.
-      </a>}</div>}
-    style={{position: 'absolute', top: -10, right: 5}}
-    >
-    <IconButton>
-      <InfoIcon color='inherit' style={{color: "#FFF", fontSize: 10, }} id='info-btn'/>
-    </IconButton>
-  </Tooltip>
-  )
-}
+      enterTouchDelay={0}
+      title={
+        <div>
+          {props.titleInfo}{' '}
+          {props.link && (
+            <a
+              href={link_active_stake}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              id="link"
+              style={{
+                color: '#0BFFB7',
+                cursor: 'pointer',
+                textDecoration: 'underline',
+              }}>
+              {lang.read || 'Read More'}.
+            </a>
+          )}
+        </div>
+      }
+      style={{position: 'absolute', top: -10, right: 5}}>
+      <IconButton>
+        <InfoIcon
+          color="inherit"
+          style={{color: '#FFF', fontSize: 10}}
+          id="info-btn"
+        />
+      </IconButton>
+    </Tooltip>
+  );
+};
 
 const InfoBlock = (props) => {
   const {lang} = props;
@@ -92,7 +111,11 @@ const InfoBlock = (props) => {
     <div>
       <div style={content} className="info-block-content">
         {props.name && (
-          <div style={addressStyle} className="info-block-address-style" onClick={props.copyName} id='info-block-name'>
+          <div
+            style={addressStyle}
+            className="info-block-address-style"
+            onClick={props.copyName}
+            id="info-block-name">
             {props.name}
           </div>
         )}
@@ -104,24 +127,33 @@ const InfoBlock = (props) => {
             marginBlock: 20,
             textAlign: 'center',
             marginTop: 10,
-            cursor: "pointer"
+            cursor: 'pointer',
           }}
           className="info-block-address"
-          onClick={props.copyAddress} id='info-block-address'>
-          {props.address} <ContentCopy fontSize='15'/>
+          onClick={props.copyAddress}
+          id="info-block-address">
+          {props.address} <ContentCopy fontSize="15" />
         </div>
       </div>
       <div style={row} className="info-block-row">
-          <div style={column} className="info-block-column">
-            {props.titleInfo && <Info {...props} lang={lang}/>}
-            <div style={value} className="info-block-value" id='value2'>{props.value2}</div>
-            <div style={subtitle} className="info-block-subtitle">{props.subtitle2}</div>
+        <div style={column} className="info-block-column">
+          {props.titleInfo && <Info {...props} lang={lang} />}
+          <div style={value} className="info-block-value" id="value2">
+            {props.value2}
           </div>
-          <div style={column2} className="info-block-column2">
-            {props.tooltip1 && <Info titleInfo={props.tooltip1} lang={lang}/>}
-            <div style={value} className="info-block-value" id='value1'>{props.value1}</div>
-            <div style={subtitle} className="info-block-subtitle">{props.subtitle1}</div>
+          <div style={subtitle} className="info-block-subtitle">
+            {props.subtitle2}
           </div>
+        </div>
+        <div style={column2} className="info-block-column2">
+          {props.tooltip1 && <Info titleInfo={props.tooltip1} lang={lang} />}
+          <div style={value} className="info-block-value" id="value1">
+            {props.value1}
+          </div>
+          <div style={subtitle} className="info-block-subtitle">
+            {props.subtitle1}
+          </div>
+        </div>
       </div>
     </div>
   );
