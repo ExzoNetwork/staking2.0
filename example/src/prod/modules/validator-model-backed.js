@@ -6,6 +6,7 @@ import { cachedCallWithRetries } from './utils';
 import { rewardsStore } from './rewards-store';
 import { parseStakeAccount } from './functions';
 import { PublicKey } from '@velas/web3';
+import { amountToBN } from '../format-value';
 
 class ValidatorModelBacked {
   network = null;
@@ -118,6 +119,7 @@ class ValidatorModelBacked {
     let total = new BN(0);
 
     for (let acc of this.backendData.stakingAccounts) {
+      const rent = amountToBN(acc.account.rentExemptReserve).div(new BN('1000000000', 10));
       if (!acc.state) {
         return null;
       }
@@ -130,7 +132,7 @@ class ValidatorModelBacked {
         if (unixTimestamp > now) continue;
       }
 
-      total = total.add(acc.activeStake).add(acc.inactiveStake);
+      total = total.add(acc.activeStake).add(acc.inactiveStake).add(rent);
     }
     return total;
   }
