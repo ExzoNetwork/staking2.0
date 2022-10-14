@@ -96,7 +96,7 @@ const WITHDRAW_TX_SIZE_MORE_THAN_EXPECTED_CODE = 102;
 
 const StakingPage = (props) => {
    const { stakingStore, lang, info } = props;  //add to prod index.js
-//  const { stakingStore } = props;  //remove from prod index.js
+  //const { stakingStore } = props;  //remove from prod index.js
 
   const [showStakePage, setShowStakePage] = React.useState({show: false, address: '', name: '', apr: '', status: '', nodePubKey: '', activeStake: '' });
   const onClickRequest = () => {
@@ -196,8 +196,6 @@ const StakingPage = (props) => {
     const [showSort, setShowSort] = React.useState(false);
     const [sortApr, setSortApr] = React.useState({name: null});
     const [sortTotalStaked, setSortTotalStaked] = React.useState({name: null});
-    const [validators, setValidators] = React.useState([]);
-    const [notValidators, setNotValidators] = React.useState([]);
     const [openSearch, setOpenSearch] = useState(false);
     const [sortType, setSortType] = useLocalStorage("sortType", []);
 
