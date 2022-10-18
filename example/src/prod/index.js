@@ -196,8 +196,6 @@ const StakingPage = (props) => {
     const [showSort, setShowSort] = React.useState(false);
     const [sortApr, setSortApr] = React.useState({name: null});
     const [sortTotalStaked, setSortTotalStaked] = React.useState({name: null});
-    const [validators, setValidators] = React.useState([]);
-    const [notValidators, setNotValidators] = React.useState([]);
     const [openSearch, setOpenSearch] = useState(false);
     const [sortType, setSortType] = useLocalStorage("sortType", []);
 
