@@ -32,6 +32,7 @@ import TransactionsProgress from './modal/TransactionsProgress';
 import index from './index.css' //remove from prod index.js
 import lang from '../lang'; //remove from prod index.js
 import info from '../info'; //remove from prod index.js
+import packageJson from '../../package.json'; // in prod change path to ../package.json
 import {ErrorParser} from './errorParser';
 
 const style = {
@@ -496,6 +497,7 @@ const StakingPage = (props) => {
 
                 </div>
                 <div style={{display: openSearch && 'none', alignItems: 'center'}}>
+                <div style={{display: 'contents', fontSize: 12, color: '#ffffff40'}}>{`v.${packageJson.version}`}</div>
                 <IconButton disabled style={{color: "white"}}><SortIcon/></IconButton>
                   <select onChange={(e) => setSortType(e.target.value)} style={selectStyle} value={sortType}>
                     <option value="apr" id='sort-apr' selected="selected">{lang.apr || "Apr"}</option>

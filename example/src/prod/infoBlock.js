@@ -121,7 +121,7 @@ const InfoBlock = (props) => {
         )}
         <div
           style={{
-            color: props.name ? 'rgba(255, 255, 255, 0.3)' : '#fff',
+            color: props.name ? '#ffffff80' : '#fff',
             fontSize: 12,
             marginHorizontal: 30,
             marginBlock: 20,

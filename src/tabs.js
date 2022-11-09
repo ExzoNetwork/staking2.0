@@ -364,7 +364,7 @@ function Rewards(props) {
   const tabRowTxt = {
     width: '33.3%',
     textAlign: 'center',
-    color: '#ffffff20',
+    color: '#ffffff80',
     fontSize: 12,
   };
   const styleFlatList = {
@@ -525,13 +525,12 @@ const TabsContainer = (props) => {
             onChange={handleChange}
             TabIndicatorProps={{style: {background: '#0BFFB7'}}}
             variant="fullWidth"
-            centered
-            textColor={'inherit'}>
+            centered>
             <Tab
               label={lang.stake1 || 'Stake'}
               id="tab-stake"
               style={{
-                color: value === 0 ? '#0BFFB7' : '#ffffff20',
+                color: value === 0 ? '#0BFFB7' : '#ffffff80',
                 fontSize: 13,
               }}
               className="tabs-container-tab"
@@ -540,7 +539,7 @@ const TabsContainer = (props) => {
               label={lang.tabWithdrawals || 'Withdrawals'}
               id="tab-withdrawals"
               style={{
-                color: value === 1 ? '#0BFFB7' : '#ffffff20',
+                color: value === 1 ? '#0BFFB7' : '#ffffff80',
                 fontSize: 13,
               }}
               className="tabs-container-tab"
@@ -549,7 +548,7 @@ const TabsContainer = (props) => {
               label={lang.tabRewards || 'Rewards'}
               id="tab-rewards"
               style={{
-                color: value === 2 ? '#0BFFB7' : '#ffffff20',
+                color: value === 2 ? '#0BFFB7' : '#ffffff80',
                 fontSize: 13,
               }}
               className="tabs-container-tab"
