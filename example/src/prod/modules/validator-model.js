@@ -6,6 +6,7 @@ import { rewardsStore } from './rewards-store';
 //const solanaWeb3 = require('./index.cjs.js');
 //const solanaWeb3 = require('@velas/web3');
 import * as solanaWeb3 from '@velas/web3';
+import { findIndex } from 'prelude-ls';
 
 class ValidatorModel {
   status = 'active';
@@ -14,6 +15,9 @@ class ValidatorModel {
   network = null;
   apr$ = null;
   name = null;
+  stakingAccountsKV = {};
+  subscriptionIDs = {};
+  totalInactive = new BN(0);
 
   get address() {
     return this.solanaValidator.votePubkey;
@@ -338,7 +342,39 @@ class ValidatorModel {
     if (!stakingAccount || !(stakingAccount instanceof StakingAccountModel)) {
       throw new Error('stakingAccount invalid');
     }
+    this.stakingAccountsKV[stakingAccount.address] = true;
     this.stakingAccounts.push(stakingAccount);
+  }
+
+  async requestStakeAccountsActivation(force=false, isWebSocketAvailable=true) {
+    if (this.requestStakeAccountsActivation.loading) return;
+    this.requestStakeAccountsActivation.loading = true;
+    let accounts = this.stakingAccounts;
+    let i = 0;
+    for (let account of accounts) {
+      if (force) {
+        account.isActivationRequested = false;
+      }
+      try {
+        const res = await account.requestActivation();
+        //Suppose this stake account was already withdrawed.
+        const IS_ACCOUNT_NOT_FOUND_ERROR =
+          (res?.error?.message || "").indexOf("account not found") > -1;
+        if (res && res.error && IS_ACCOUNT_NOT_FOUND_ERROR) {
+          const accountAddress = res.address;
+          //if (!isWebSocketAvailable) {
+            const index = findIndex( (it) => {
+              return it.account.pubkey === accountAddress;
+            })(this.stakingAccounts);
+            this.stakingAccounts.splice(index, 1);
+          //}
+        }
+      } catch (err){
+        console.warn("requestStakeAccountsActivation caught", err);
+      }
+      i++;
+    }
+    this.requestStakeAccountsActivation.loading = false;
   }
 }
 
