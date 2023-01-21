@@ -4,16 +4,13 @@ import bs58 from 'bs58';
 import fetch from 'cross-fetch';
 import {Buffer} from 'buffer';
 import _ from 'lodash';
+import { Fraction } from 'fractional';
 import { findIndex } from 'prelude-ls';
 import { amountToBN } from '../format-value';
 import { ValidatorModel } from './validator-model.js';
 import { ValidatorModelBacked } from './validator-model-backed.js';
 import { StakingAccountModel } from './staking-account-model.js';
 
-
-//const solanaWeb3 = require('./index.cjs.js');
-//import * as solanaWeb3 from './index.cjs.js';
-//import * as solanaWeb3 from '@velas/web3';
 import { StakeProgram, Account, PublicKey, Connection, Transaction, Lockup, Authorized } from '@velas/web3';
 
 import crypto from 'isomorphic-webcrypto';
@@ -168,7 +165,6 @@ class StakingStore {
       //await this.connection.removeAccountChangeListener(this.updateVLXBalances.subscriptionID);
       return;
     const callback = (updatedAccount) => {
-      //console.log("updateVLXBalances",updatedAccount)
       const lamportsStr = updatedAccount.lamportsStr;
       this.vlxNativeBalance = lamportsStr ? new BN(lamportsStr, 10) : new BN('0');
       this.getEvmBalance();
@@ -959,37 +955,66 @@ class StakingStore {
   }
 
   getSwapAmountByStakeAmount(amountStr) {
-    const amount =
-      typeof amountStr === 'string'
-        ? new BN((amountStr * 1e9))
-        : amountStr;
+		var amount = (typeof amountStr === 'string')
+			? new Fraction(amountStr.toString()).multiply(new Fraction(1e9))
+			: new Fraction(amountStr.toString());
+
     if (!this.vlxNativeBalance) {
       return null;
     }
-    if (this.vlxNativeBalance.gte(amount.add(PRESERVE_BALANCE))) {
-      return new BN(0);
-    }
+		const nativeBalanceStr = this.vlxNativeBalance.toString();
+		const nativeBalanceFraction = new Fraction(nativeBalanceStr);
+	
+		const preserveBalanceFraction = new Fraction('1000000000');
+		const amountWithPreserveFraction = amount.add(preserveBalanceFraction);
+
+		const nativeBalanceEqualsAmount = nativeBalanceFraction.equals(amountWithPreserveFraction);
+		const nativeBalanceGreaterThanAmount = nativeBalanceFraction.subtract(amountWithPreserveFraction) > 0;
+	
+		if (nativeBalanceEqualsAmount || nativeBalanceGreaterThanAmount) {
+			return new BN(0);
+		}
+
     if (!this.vlxEvmBalance) {
       return null;
     }
-    if (this.vlxNativeBalance.add(this.vlxEvmBalance).lt(amount)) {
-      return null;
-    }
+	
+    const vlxEvmBalanceFraction = new Fraction(this.vlxEvmBalance.toString());
+		const evmBalanceWithNativeFraction = vlxEvmBalanceFraction.add(nativeBalanceFraction);
+		const evmBalanceWithNativeFractionLessThanAmount =
+			evmBalanceWithNativeFraction.subtract(amount) < 0;
 
-    if (
-      this.vlxNativeBalance
-        .add(this.vlxEvmBalance)
-        .lte(amount.add(PRESERVE_BALANCE))
-    ) {
-      if (this.vlxEvmBalance.eq(amount.add(PRESERVE_BALANCE))) {
-        return this.vlxEvmBalance.sub(
-          PRESERVED_FOR_COMMISSION_FROM_EVM_TO_NATIVE
-        );
-      }
-      return this.vlxEvmBalance;
-    }
+		if (evmBalanceWithNativeFractionLessThanAmount) {
+			return null;
+		}
+	
+		const evmBalanceWithNativeLessThanAmountAndPreserve =
+			evmBalanceWithNativeFraction.subtract(amountWithPreserveFraction) < 0;
+		const evmBalanceWithNativeEqualsToAmountAndPreserve =
+			evmBalanceWithNativeFraction.equals(amountWithPreserveFraction);
+		
+		if (evmBalanceWithNativeLessThanAmountAndPreserve || evmBalanceWithNativeEqualsToAmountAndPreserve) {
+			const evmBalanceEqualsToAmountWIthPreserve =
+				vlxEvmBalanceFraction.equals(amountWithPreserveFraction);
+			if (evmBalanceEqualsToAmountWIthPreserve) {
+				const PRESERVED_FOR_COMMISSION_FROM_EVM_TO_NATIVE_FRACTION = new Fraction(0.5);
+				const diffFraction =
+					vlxEvmBalanceFraction.subtract(PRESERVED_FOR_COMMISSION_FROM_EVM_TO_NATIVE_FRACTION);
+				
+				// change return from BN to Fraction object later
+				try {
+					const diffBN = new BN(diffFraction);
+					return diffBN;
+				} catch (e) {
+					console.error('EvmBalance subtract preserved amount (0.5 VLX) error', e);
+				}
+			}
 
-    return amount.add(PRESERVE_BALANCE).sub(this.vlxNativeBalance);
+			return this.vlxEvmBalance;
+		}
+	
+		var resultFraction = amountWithPreserveFraction.subtract(vlxEvmBalanceFraction);
+		return new BN(resultFraction.toString());
   }
 
   async splitStakeAccountTransaction(stakeAccount, lamports) {
@@ -1048,12 +1073,10 @@ class StakingStore {
     this.actionLabel = 'request_withdraw';
     let transaction = null;
     this.txsProgress = this.txsArr;
-    let sendAmount = new BN('0');
+    let sendAmountFraction = new Fraction('0');
     const authorizedPubkey = this.publicKey;
     const { blockhash } = await this.connection.getRecentBlockhash();
-    let txs = [];
     let arrIndex = 0;
-    //const transaction = new Transaction();
     const validator = this.validators.find((v) => v.address === address);
     if (!validator) {
       throw new Error('Not found');
@@ -1068,18 +1091,35 @@ class StakingStore {
         );
       })
       .sort((a, b) => b.myStake.cmp(a.myStake));
-    let totalStake = new BN(0);
-    if (typeof amount === 'string') {
-      amount = new BN((parseFloat(amount) * Math.pow(10,9)));
-    }
+		
+    let totalStakeFraction = new Fraction(0);
+    const amountType = typeof amount;
+		let amountFraction = (() => {
+			switch (amountType) {
+				case 'string':
+					const _amount = new Fraction(amount).multiply(new Fraction(1e9));
+					const normalized = _amount.numerator / _amount.denominator;
+					return new Fraction(normalized);
+				default:
+					return new Fraction(amount.toString());
+			}
+		})();
+
     for (let i = 0; i < sortedAccounts.length; i++) {
-      totalStake = totalStake.add(sortedAccounts[i].myStake);
+    	const myStakeFraction = new Fraction(sortedAccounts[i].myStake);
+			totalStakeFraction = totalStakeFraction.add(myStakeFraction);
     }
-    if (totalStake.sub(new BN(10000000)).lt(amount)) {
-      amount = totalStake;
+    const PRESERVED_FEE = new Fraction(10000000);
+    const totalStakeMinusPreservedFee = totalStakeFraction.subtract(PRESERVED_FEE);
+    const totalStakeMinusPreservedFeeLessThanAmount = totalStakeMinusPreservedFee.subtract(amountFraction) < 0;
+    if (totalStakeMinusPreservedFeeLessThanAmount) {
+			amountFraction = totalStakeFraction;
     }
     let i = 0;
-    while (!amount.isZero() && !amount.isNeg()) {
+    const amountIsZero = () => amountFraction.equals(new Fraction(0));
+    const amountIsNegative = () => amountFraction < 0;
+    
+    while (!amountIsZero() && !amountIsNegative()) {
       const account = sortedAccounts.pop();
       if (!transaction) {
         transaction = new Transaction();
@@ -1087,23 +1127,29 @@ class StakingStore {
         transaction.feePayer = authorizedPubkey;
       }
       if ((i !== 0) && (i % MAX_INSTRUCTIONS_PER_WITHDRAW === 0)) {
-        this.updateTx({transaction, sendAmount, state: ""}, arrIndex);
+        this.updateTx({transaction, sendAmount: sendAmountFraction, state: ""}, arrIndex);
         arrIndex++;
-        sendAmount = new BN('0');
+				sendAmountFraction = new Fraction('0');
         transaction = new Transaction();
         transaction.recentBlockhash = blockhash;
         transaction.feePayer = authorizedPubkey;
       }
       i++;
-      sendAmount = sendAmount.add(account.myStake)
+			
+      const myStakeFraction = new Fraction(account.myStake.toString());
+			sendAmountFraction = sendAmountFraction.add(myStakeFraction);
 
-      if (amount.gte(account.myStake)) {
+			const amountGreaterThanMyStake = amountFraction.subtract(myStakeFraction) > 0;
+			const amountEqualsToMyStake = amountFraction.equals(myStakeFraction);
+      
+			if (amountGreaterThanMyStake || amountEqualsToMyStake) {
         transaction.add(await this.undelegateTransaction(account.publicKey));
-        amount = amount.sub(account.myStake);
+				amountFraction = amountFraction.subtract(myStakeFraction);
       } else {
+				const splitAmountFraction = myStakeFraction.subtract(amountFraction);
         const splitInstruction = await this.splitStakeAccountTransaction(
           account,
-          account.myStake.sub(amount)
+					new BN(splitAmountFraction.toString())
         );
         const { instruction, splitStakePubkey } = splitInstruction;
         _splitStakePubkey = splitStakePubkey;
@@ -1113,18 +1159,17 @@ class StakingStore {
       }
     }
 
-    this.updateTx({transaction,sendAmount, state: ""}, arrIndex);
+    this.updateTx({transaction, sendAmount: sendAmountFraction, state: ""}, arrIndex);
     arrIndex++;
 
     if (this.txsProgress.filter(it => it.transaction).length > 1)
       return {error: true, code: WITHDRAW_TX_SIZE_MORE_THAN_EXPECTED_CODE};
 
-    const totalAmount = new BN('0');
+    const totalAmountFraction = new Fraction(0);
     validator.stakingAccounts.map(it => {
       const {lamports} = it.account;
-      totalAmount.add(new BN(lamports))
+			totalAmountFraction.add(new Fraction(lamports));
     });
-    const totalAmountStr = totalAmount.toString();
 
     const signature = await this.sendTransaction(transaction);
     if (signature && signature.error){
@@ -1150,7 +1195,6 @@ class StakingStore {
             validatorsBackend: this.validatorsBackend,
           }
         );
-        //console.log("new splitted acc", newStakeAccount)
         this.chosenValidator.addStakingAccount(newStakeAccount,
           {
             requestActivation: true,
@@ -1182,7 +1226,6 @@ class StakingStore {
     const { blockhash } = await this.connection.getRecentBlockhash();
 
     this.txsProgress = this.txsArr;
-    let txs = [];
     let arrIndex = 0;
     this.actionLabel = 'withdraw';
 
@@ -1246,7 +1289,6 @@ class StakingStore {
         console.warn(e);
       }
     }
-    //console.log(`Try to withdraw ${sendAmount} VLX`)
     this.updateTx({transaction,sendAmount, state: ""}, arrIndex);
     arrIndex++;
 

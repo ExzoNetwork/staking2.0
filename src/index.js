@@ -635,15 +635,7 @@ const StakingPage = (props) => {
       padding:10,
       borderRadius: 0
     }
-    const popupContainer = {
-      position: "absolute",
-      top: 0,
-      right: 0,
-      left: 0,
-      zIndex: 999,
-      padding:10,
-      borderRadius: 0
-    }
+
     const withdrawDisabled = !values.amountWithdraw || (amountToBN(values.amountWithdraw+"").gt(TOTAL_STAKE)) || values.amountWithdraw == 0
 
     const onClickMax = (text) => {
