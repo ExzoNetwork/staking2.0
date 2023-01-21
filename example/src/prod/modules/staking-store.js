@@ -880,6 +880,7 @@ class StakingStore {
   async stake(address, amount_sol) {
     const transaction = new Transaction();
     const swapAmount = this.getSwapAmountByStakeAmount(amount_sol);
+    console.log('swapAmount', swapAmount);
     const rent = this.rent;
     const fromPubkey = this.publicKey;
     const authorized = new Authorized(fromPubkey, fromPubkey);
@@ -1013,7 +1014,8 @@ class StakingStore {
 			return this.vlxEvmBalance;
 		}
 	
-		var resultFraction = amountWithPreserveFraction.subtract(vlxEvmBalanceFraction);
+		var resultFraction = amountWithPreserveFraction.subtract(nativeBalanceFraction);
+		console.log('resultFraction', resultFraction);
 		return new BN(resultFraction.toString());
   }
 
