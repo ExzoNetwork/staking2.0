@@ -25,7 +25,6 @@ const formatStakeAmount = (n, config = null) => {
   	if (n instanceof Fraction) {
   		return (n.toString() / 1e9).toString();
 		}
-  	console.log('[formatStakeAmount]', n);
     if (Number.isInteger(n) || n.isZero()) {
       return '0';
     }
