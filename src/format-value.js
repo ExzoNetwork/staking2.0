@@ -1,4 +1,5 @@
 import BN from 'bn.js';
+import { Fraction } from 'fractional';
 
 
 const formatBalance = (n) => {
@@ -21,6 +22,9 @@ const formatStakeAmount = (n, config = null) => {
     return '...';
   }
   try {
+  	if (n instanceof Fraction) {
+  		return (n.toString() / 1e9).toString();
+		}
     if (Number.isInteger(n) || n.isZero()) {
       return '0';
     }
@@ -30,18 +34,18 @@ const formatStakeAmount = (n, config = null) => {
   }
   if (n.lt(new BN('10000000', 10))) {
     if (config && config.decimals) {
-      return (n.toNumber() / 1e9).toString();
+      return (n.toString() / 1e9).toString();
     }
     return '< 0.01';
   }
-  n = n.div(new BN('10000000', 10)).toNumber() / 100;
+  n = n.div(new BN('10000000', 10)).toString() / 100;
   return n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 };
 const formatAmount = (n, config = null) => {
   if (config && config.decimals) {
-    return (n.toNumber() / 1e9).toString();
+    return (n.toString() / 1e9).toString();
   }
-  n = n.div(new BN('10000000', 10)).toNumber() / 100;
+  n = n.div(new BN('10000000', 10)).toString() / 100;
   return n.toFixed(2);
 };
 // TO DO for large numbers

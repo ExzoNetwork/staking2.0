@@ -4106,6 +4106,11 @@ form-data@^3.0.0:
     combined-stream "^1.0.8"
     mime-types "^2.1.12"
 
+fractional@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/fractional/-/fractional-1.0.0.tgz#dab167a2f9f804cf9038bddf47aa9ba7f207eabc"
+  integrity sha512-4huGcVdAAr0ffcQ7wQY3dhAdZqKd6QgGOP4Kd7ioNoBAS7GdzolwnqgjH/jTzzCpg71oTLbOVwcOWOH+BmwqvA==
+
 fragment-cache@^0.2.1:
   version "0.2.1"
   resolved "https://registry.npmjs.org/fragment-cache/-/fragment-cache-0.2.1.tgz"
