@@ -1015,7 +1015,6 @@ class StakingStore {
 		}
 	
 		var resultFraction = amountWithPreserveFraction.subtract(nativeBalanceFraction);
-		console.log('resultFraction', resultFraction);
 		return new BN(resultFraction.toString());
   }
 
