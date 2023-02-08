@@ -1119,7 +1119,7 @@ class StakingStore {
     const amountIsZero = () => amountFraction.equals(new Fraction(0));
     const amountIsNegative = () => amountFraction < 0;
     
-    while (!amountIsZero() && !amountIsNegative()) {
+    while (sortedAccounts.length && !amountIsZero() && !amountIsNegative()) {
       const account = sortedAccounts.pop();
       if (!transaction) {
         transaction = new Transaction();
