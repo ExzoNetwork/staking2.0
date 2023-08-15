@@ -91,7 +91,7 @@ function BlockStake(props) {
           <div style={rowStyle}>
             <Rectangle
               row1={<StakeIcon width="20px" height="14px" />}
-              row2={formatStakeAmount(activeStake) + ' VLX'}
+              row2={formatStakeAmount(activeStake) + ' XZO'}
               id="total-stake"
               row3={lang.totalStake1 || 'Total stake'}
               style={{

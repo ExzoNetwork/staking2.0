@@ -5,7 +5,7 @@ export class ErrorParser {
     const parsedResult = (function(){
       switch(true){
         case (result || "").toString().indexOf('Attempt to debit an account but found no record of a prior credit') > -1 :
-          return "Not enough VLX Native balance for this transaction.";
+          return "Not enough XZO Native balance for this transaction.";
         case ((result || "").toString().indexOf('custom program error: 0x1') > -1) ||
              ((result || "").toString().indexOf('insufficient funds for instruction') > -1):
           return "Failed to get the latest data, please refresh and try again.";

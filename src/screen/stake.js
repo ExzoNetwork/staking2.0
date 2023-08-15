@@ -136,7 +136,7 @@ const Stake = (props) => {
           onClickMax={onClickMax}
           />
           {(amountToBN(values.amount+"").gte(available_balance.sub(new BN(1e9)))) &&
-            <Notice mt={20} text={lang.dontStake || "Don't stake all coins, leave some (~1 VLX) to pay transaction fees in the future and be able to initiate stake withdrawals."}/>
+            <Notice mt={20} text={lang.dontStake || "Don't stake all coins, leave some (~1 XZO) to pay transaction fees in the future and be able to initiate stake withdrawals."}/>
           }
 
         <ButtonBlock

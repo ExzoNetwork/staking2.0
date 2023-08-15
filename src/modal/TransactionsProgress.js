@@ -141,7 +141,7 @@ const TransactionsProgress = (props) => {
                     }
                   }
                   const action = stakingStore.actionLabel === 'withdraw' ? 'Withdraw' : 'Request';
-                  const btnText = item.state === 'loading' ? 'loading...' : `${action} ${amount} VLX`;
+                  const btnText = item.state === 'loading' ? 'loading...' : `${action} ${amount} XZO`;
                   const endIcon = (item.state === 'loading' || !item.state) ? null : ( item.state === 'loaded' ? <CheckCircle color='primary'/> : <ErrorIcon color='primary'/>)
                   return(
                     <div key={`row_${index}`} className="tx-progress" style={styles.txProgress}>

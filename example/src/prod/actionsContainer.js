@@ -37,7 +37,7 @@ const Actions = (props) => {
             <div style={flex} className="actions-styleh3">
               <div style={styleNumber} className="actions-style-number">1</div>
               <div style={textStyle} className="actions-text-style">
-                {lang.stepItem1 || "Convert"} {amount} {lang.stepItem1Part || "VLX EVM to VLX Native"}
+                {lang.stepItem1 || "Convert"} {amount} {lang.stepItem1Part || "XZO EVM to XZO Native"}
               </div>
             </div>
             <div style={flex} className="actions-flex">

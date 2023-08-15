@@ -41,7 +41,7 @@ const lang = {
     ok: "Ok",
     progressStaking: "Staking in progress...",
     progressWithdraw: "Withdrawing in process...",
-    dontStake: "Don’t stake all coins, leave some (~1 VLX) to pay transaction fees in the future and be able to initiate stake withdrawals.",
+    dontStake: "Don’t stake all coins, leave some (~1 XZO) to pay transaction fees in the future and be able to initiate stake withdrawals.",
     noticeStakingRewards: "Staking rewards will be reinvested and added to the stake.",
     confirm: "Confirm",
     stakingEnteranceTitle: "Stake account has been created successfully",
@@ -61,7 +61,7 @@ const lang = {
     error1: "Failed to get the latest data, please refresh and try again.",
     error2: "Something went wrong. Please contact support or go back and try to use Staking 1.0 in the DApp section.\n\n",
     stepItem1: "Convert",
-    stepItem1Part: "VLX EVM to VLX Native",
+    stepItem1Part: "XZO EVM to XZO Native",
   };
   
   export default lang;

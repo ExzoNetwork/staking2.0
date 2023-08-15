@@ -836,11 +836,11 @@ class StakingStore {
         }
       );
     });
-    let chainId = this.network === 'mainnet' ? 106 : 111;
+    let chainId = this.network === 'mainnet' ? 1229 : 2370;
     const customCommon = Common.forCustomChain(
       'mainnet',
       {
-        name: 'velas',
+        name: 'exzo',
         networkId: chainId,
         chainId: chainId,
       },
@@ -1007,7 +1007,7 @@ class StakingStore {
 					const diffBN = new BN(diffFraction);
 					return diffBN;
 				} catch (e) {
-					console.error('EvmBalance subtract preserved amount (0.5 VLX) error', e);
+					console.error('EvmBalance subtract preserved amount (0.5 XZO) error', e);
 				}
 			}
 

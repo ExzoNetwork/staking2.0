@@ -40,7 +40,7 @@ const TableValidators = ({children, ...props}) => {
               Commission,%
             </TableCell>
             <TableCell align="right" style={styleHead} className="style-head">
-              {props.staked ? 'My Stake (VLX)' : 'Total Staked (VLX)'}
+              {props.staked ? 'My Stake (XZO)' : 'Total Staked (XZO)'}
             </TableCell>
             <TableCell align="right" style={styleHead} className="style-head">
               Apr,%

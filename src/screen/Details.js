@@ -91,7 +91,7 @@ const DetailsValidator = (props) => {
     setCopy(true)
   }
   const onClickExplorer = () => {
-    window.open(`https://native.velas.com/address/${showStakePage.address}`);
+    window.open(`https://exzoscan.io/address/${showStakePage.address}`);
   }
 
   setTimeout(function(){
@@ -227,7 +227,7 @@ const DetailsValidator = (props) => {
                     copyAddress={copyAddress}
                     name={name}
                     value2={wrapNumber(myActiveStake) + " %"}
-                    value1={formatStakeAmount(myStake) + " VLX"}
+                    value1={formatStakeAmount(myStake) + " XZO"}
                     titleInfo={lang.info4 || 'Only 25% of active stake can be activated per epoch.'}
                     subtitle2={lang.myActiveStake || 'My active stake'}
                     subtitle1={lang.myStake1 || 'My stake' }
@@ -241,7 +241,7 @@ const DetailsValidator = (props) => {
                     copyAddress={copyAddress}
                     name={name}
                     value1={apr + ' %'}
-                    value2={formatStakeAmount(activeStake) + ' VLX'}
+                    value2={formatStakeAmount(activeStake) + ' XZO'}
                     subtitle1={lang.annual || 'ANNUAL PERCENTAGE RATE'}
                     subtitle2={lang.totalStake1 || "Total Stake"}
                     tooltip1={lang.info3 || 'APR is calculated based on the results of the previous epoch'}

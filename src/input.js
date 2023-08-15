@@ -92,7 +92,7 @@ const InputValue = (props) => {
             id="standard-weight-helper-text"
             style={{color: '#fff'}}
             className="input-subtitle">
-            {props.maxValueText || (lang.availableStaking || 'Available for staking')}: {max_value} VLX
+            {props.maxValueText || (lang.availableStaking || 'Available for staking')}: {max_value} XZO
           </FormHelperText>
         </FormControl>
       )}

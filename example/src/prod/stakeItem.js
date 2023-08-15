@@ -55,7 +55,7 @@ const StakeItem = (props) => {
                 <div id='address-validator' style={{marginTop: 2, color: props.name ? 'rgba(255,255,255,0.50)' : '#fff', fontSize: 12}}>{width < 750 ? addressCut : address}</div>
                 {props.name && <div id='name-validator' style={cssStyle}>{props.name}</div>}
                 <div style={{marginTop: 6, color: 'rgba(255,255,255,0.50)', fontSize: 10}}>{isStaked ? lang.myStake1 || "My Stake" : lang.totalStaked || "Total Staked"}</div>
-                <div id={isStaked ? 'my-stake-validator' : 'total-staked-validator'}  style={{marginBlock: 2, color: isStaked ? '#0BFFB7' : "#fff"}}> {isStaked ? formatStakeAmount(props.myStake) : formatStakeAmount(props.totalStaked)}{' '}VLX</div>
+                <div id={isStaked ? 'my-stake-validator' : 'total-staked-validator'}  style={{marginBlock: 2, color: isStaked ? '#0BFFB7' : "#fff"}}> {isStaked ? formatStakeAmount(props.myStake) : formatStakeAmount(props.totalStaked)}{' '}XZO</div>
             </div>
             <div style={{display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'flex-end', width: '100%', marginBlock: 5}}>
                 <div style={{marginTop: 6}}><Badge status={props.status} lang={lang}/></div>
