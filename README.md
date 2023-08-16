@@ -5,7 +5,7 @@ A simple staking component
 ## Installation
 
 ```
-npm install @velas/staking.2.0
+npm install @exzonetwork/staking.2.0
 ```
 
 ### How to create `.tgz` archive?
