@@ -2,7 +2,7 @@ import * as React from 'react';
 
 const VelasIcon = (props) => {
   return (
-    <svg width="41" height="47" viewBox="0 0 41 47" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="41" height="47" viewBox="0 0 41 47" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path opacity="0.1" fill-rule="evenodd" clip-rule="evenodd" d="M18.8937 35.5948C16.9062 35.5948 14.9833 35.3248 13.1572 34.8171C13.3725 37.0672 13.803 39.2993 14.4487 41.4846C21.1216 39.8754 27.1953 36.3724 31.9201 31.3754L31.8196 31.271C28.2177 33.9855 23.7441 35.5948 18.8901 35.5948H18.8937Z" fill="black"/>
 <path fill-rule="evenodd" clip-rule="evenodd" d="M30.4192 5.87545L20.2808 0C17.321 3.58575 15.0968 7.67193 13.6797 12.0137C21.479 13.6482 28.3707 17.7632 33.4937 23.5054C36.5323 26.9112 38.9468 30.8857 40.5612 35.2491V11.7509H40.5576L30.4228 5.87545H30.4192Z" fill="url(#paint0_linear_562_16149)"/>
 <path opacity="0.3" fill-rule="evenodd" clip-rule="evenodd" d="M17.1982 4.34281C17.2199 4.30667 17.2452 4.27052 17.2669 4.23438L17.1982 4.34281Z" fill="#A4A4A4"/>
