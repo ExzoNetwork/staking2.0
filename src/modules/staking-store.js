@@ -55,7 +55,7 @@ async function tryFixCrypto() {
 
 tryFixCrypto();
 
-const MIN_VALIDATOR_STAKE = new BN('1000000000000000', 10);
+const MIN_VALIDATOR_STAKE = new BN('10000000000000', 10);
 
 class StakingStore {
   validators = null;
